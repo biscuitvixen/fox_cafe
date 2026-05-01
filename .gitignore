@@ -1,0 +1,11 @@
+# Secrets
+.env
+
+# Editor/OS noise
+*.swp
+*.swo
+.DS_Store
+
+# Stateful Docker volumes
+data/
+!data/.gitkeep

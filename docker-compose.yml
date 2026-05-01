@@ -1,0 +1,153 @@
+# Foundry hosting stack on atlas
+#
+# Architecture:
+#   Internet → Hetzner Firewall (80/443 only) → caddy-security
+#     ├── Auth portal at auth.bluefox.cafe (Discord OAuth)
+#     ├── Foundry game instances (Discord-gated via forward auth)
+#     ├── Uptime Kuma (Discord-gated)
+#     └── Dozzle log viewer (Discord-gated)
+#
+# All inter-container traffic goes over the `web` bridge network.
+# Foundry containers do NOT publish ports - only Caddy reaches them.
+
+services:
+  # ─────────────────────────────────────────────────────────────────────
+  # Reverse proxy + TLS + Discord OAuth gate
+  # ─────────────────────────────────────────────────────────────────────
+  caddy:
+    # caddy-security ships Caddy + the security/auth plugins compiled in.
+    # We can't use the standard caddy:2-alpine image because we need the
+    # `security {}` Caddyfile directive which comes from the plugin.
+    image: ghcr.io/authcrunch/authcrunch:latest
+    container_name: caddy
+    restart: unless-stopped
+    ports:
+      - "80:80"        # ACME HTTP-01 challenges + redirect to HTTPS
+      - "443:443"      # HTTPS
+      - "443:443/udp"  # HTTP/3 (QUIC) - better latency for transatlantic players
+    volumes:
+      - ./caddy/Caddyfile:/etc/caddy/Caddyfile:ro
+      - ./data/caddy/data:/data        # ACME certs + state. BACK THIS UP.
+      - ./data/caddy/config:/config
+    environment:
+      ACME_EMAIL:            ${ACME_EMAIL}
+      JWT_SHARED_KEY:        ${JWT_SHARED_KEY}
+      DISCORD_CLIENT_ID:     ${DISCORD_CLIENT_ID}
+      DISCORD_CLIENT_SECRET: ${DISCORD_CLIENT_SECRET}
+      DISCORD_GUILD_ID:      ${DISCORD_GUILD_ID}
+    networks: [web]
+    healthcheck:
+      test: ["CMD", "wget", "-q", "--spider", "http://localhost:2019/config/"]
+      interval: 30s
+      timeout: 5s
+      retries: 3
+
+  # ─────────────────────────────────────────────────────────────────────
+  # Foundry game instances
+  # ─────────────────────────────────────────────────────────────────────
+  # One container per game. Each has its own license, volume, and DM creds.
+  # Pinned to release-13 so Watchtower won't yank them to v14 unannounced.
+  # `init: true` runs tini as PID 1 for clean signal handling on Node.
+  # `mem_limit` caps RAM per instance - protects the box from a runaway one.
+
+  foundry-starwars:
+    image: felddy/foundryvtt:release-13
+    container_name: foundry-starwars
+    restart: unless-stopped
+    init: true
+    mem_limit: 2g
+    environment:
+      FOUNDRY_USERNAME:    ${FOUNDRY_USERNAME_STARWARS}
+      FOUNDRY_PASSWORD:    ${FOUNDRY_PASSWORD_STARWARS}
+      FOUNDRY_LICENSE_KEY: ${FOUNDRY_LICENSE_STARWARS}
+      FOUNDRY_HOSTNAME:    starwars.bluefox.cafe
+      FOUNDRY_PROXY_SSL:   "true"   # Foundry emits https:// URLs (we terminate TLS at Caddy)
+      FOUNDRY_PROXY_PORT:  "443"
+      FOUNDRY_TELEMETRY:   "false"
+      TIMEZONE:            Europe/London
+    volumes:
+      - ./data/foundry-starwars:/data
+    networks: [web]
+
+  foundry-beastworld:
+    image: felddy/foundryvtt:release-13
+    container_name: foundry-beastworld
+    restart: unless-stopped
+    init: true
+    mem_limit: 2g
+    environment:
+      FOUNDRY_USERNAME:    ${FOUNDRY_USERNAME_BEASTWORLD}
+      FOUNDRY_PASSWORD:    ${FOUNDRY_PASSWORD_BEASTWORLD}
+      FOUNDRY_LICENSE_KEY: ${FOUNDRY_LICENSE_BEASTWORLD}
+      FOUNDRY_HOSTNAME:    beastworld.bluefox.cafe
+      FOUNDRY_PROXY_SSL:   "true"
+      FOUNDRY_PROXY_PORT:  "443"
+      FOUNDRY_TELEMETRY:   "false"
+      TIMEZONE:            Europe/London
+    volumes:
+      - ./data/foundry-beastworld:/data
+    networks: [web]
+
+  # Add foundry-game3, foundry-game4 by duplicating the block above.
+  # Don't forget to: add per-game env vars to .env, declare the volume below,
+  # add the Caddyfile site block, and add the Uptime Kuma monitor.
+
+  # ─────────────────────────────────────────────────────────────────────
+  # Monitoring
+  # ─────────────────────────────────────────────────────────────────────
+  uptime-kuma:
+    image: louislam/uptime-kuma:1
+    container_name: uptime-kuma
+    restart: unless-stopped
+    volumes:
+      - ./data/uptime-kuma:/app/data
+    networks: [web]
+
+  dozzle:
+    image: amir20/dozzle:latest
+    container_name: dozzle
+    restart: unless-stopped
+    environment:
+      DOZZLE_NO_ANALYTICS: "true"
+    volumes:
+      # :ro is critical - Dozzle only reads from the docker socket.
+      # Without :ro, this container effectively has root on the host.
+      - /var/run/docker.sock:/var/run/docker.sock:ro
+    networks: [web]
+
+  # ─────────────────────────────────────────────────────────────────────
+  # Auto-updates
+  # ─────────────────────────────────────────────────────────────────────
+  watchtower:
+    image: containrrr/watchtower:latest
+    container_name: watchtower
+    restart: unless-stopped
+    environment:
+      WATCHTOWER_CLEANUP: "true"           # remove old images after update
+      WATCHTOWER_SCHEDULE: "0 0 5 * * *"   # 05:00 UTC daily (matches skypaw)
+      WATCHTOWER_INCLUDE_RESTARTING: "true"
+      WATCHTOWER_NOTIFICATION_URL: ${WATCHTOWER_DISCORD_WEBHOOK}
+      WATCHTOWER_NOTIFICATIONS: shoutrrr
+    volumes:
+      - /var/run/docker.sock:/var/run/docker.sock
+
+  # ─────────────────────────────────────────────────────────────────────
+  # CrowdSec - commented out, future addition
+  # ─────────────────────────────────────────────────────────────────────
+  # crowdsec:
+  #   image: crowdsecurity/crowdsec:latest
+  #   container_name: crowdsec
+  #   restart: unless-stopped
+  #   environment:
+  #     COLLECTIONS: "crowdsecurity/caddy crowdsecurity/http-cve crowdsecurity/linux"
+  #     GID: "1000"
+  #   volumes:
+  #     - crowdsec_data:/var/lib/crowdsec/data
+  #     - crowdsec_config:/etc/crowdsec
+  #     # Will need to share Caddy's log volume read-only for parsing
+  #   networks: [web]
+
+networks:
+  web:
+    driver: bridge
+    name: foundry_web   # explicit name so we don't get foundry-stack_web

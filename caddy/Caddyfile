@@ -1,0 +1,153 @@
+{
+    # Global options block
+
+    email {$ACME_EMAIL}
+
+    # Disable the admin API on its default port. We don't manage Caddy via API,
+    # and leaving this open inside the container is mild attack surface.
+    admin off
+
+    # ─────────────────────────────────────────────────────────────────
+    # caddy-security: identity provider, auth portal, authorization policy
+    # ─────────────────────────────────────────────────────────────────
+    security {
+        # Discord as the OAuth identity provider.
+        # The `user_group_filters` directive is the magic: only members of
+        # the configured guild get the synthetic role
+        # `discord.com/<guild_id>/members` attached to their session token.
+        # Anyone NOT in the guild authenticates successfully against Discord
+        # but ends up with no useful role - denied by the policy below.
+        oauth identity provider discord {
+            realm discord
+            driver discord
+            client_id     {$DISCORD_CLIENT_ID}
+            client_secret {$DISCORD_CLIENT_SECRET}
+            scopes identify guilds
+            user_group_filters {$DISCORD_GUILD_ID}
+        }
+
+        # The auth portal - this is the user-facing login UI.
+        authentication portal foundryauth {
+            # Session cookie lifetime (7 days). When this expires, users get
+            # a silent redirect through Discord (no re-consent needed) and
+            # land back on the page they came from.
+            crypto default token lifetime 604800
+            crypto key sign-verify {$JWT_SHARED_KEY}
+
+            enable identity provider discord
+
+            # CRITICAL: cookie domain must be the apex, NOT a subdomain.
+            # This is what makes one login cover all your *.bluefox.cafe sites.
+            cookie domain bluefox.cafe
+            cookie lifetime 604800
+
+            ui {
+                links {
+                    "Star Wars"   https://starwars.bluefox.cafe   icon "las la-jedi"
+                    "Beastworld"  https://beastworld.bluefox.cafe icon "las la-paw"
+                    "Uptime"      https://kuma.bluefox.cafe       icon "las la-heartbeat"
+                    "Logs"        https://logs.bluefox.cafe       icon "las la-stream"
+                }
+            }
+
+            # Translate Discord guild membership into a local role.
+            # Decoupling the Discord-specific role from our policy means
+            # adding a second auth provider later doesn't require rewriting
+            # the policy.
+            transform user {
+                match origin discord
+                match roles "discord.com/{$DISCORD_GUILD_ID}/members"
+                action add role authp/player
+            }
+        }
+
+        # The authorization policy - applied to gated sites via `authorize with`.
+        # Allows users with the `authp/player` role, denies everyone else.
+        authorization policy player_policy {
+            set auth url https://auth.bluefox.cafe/auth/oauth2/discord
+            crypto key verify {$JWT_SHARED_KEY}
+
+            acl rule {
+                comment "allow guild members"
+                match role authp/player
+                allow stop
+            }
+            acl rule {
+                comment "deny everyone else"
+                match any
+                deny stop
+            }
+        }
+    }
+}
+
+# ─────────────────────────────────────────────────────────────────────
+# Reusable snippets - keep per-site config DRY
+# ─────────────────────────────────────────────────────────────────────
+
+(security_headers) {
+    header {
+        # HSTS: tell browsers to ALWAYS use HTTPS for this domain for 1 year.
+        # `preload` requests inclusion in the browser-shipped HSTS list.
+        Strict-Transport-Security "max-age=31536000; includeSubDomains; preload"
+        # Block content-type sniffing - defence against MIME confusion attacks.
+        X-Content-Type-Options "nosniff"
+        # Send origin only (no path) on cross-origin requests.
+        Referrer-Policy "strict-origin-when-cross-origin"
+        # Don't advertise that we're Caddy.
+        -Server
+    }
+}
+
+(gated) {
+    import security_headers
+    authorize with player_policy
+}
+
+# ─────────────────────────────────────────────────────────────────────
+# Auth portal - public, this is where the Discord redirect lands
+# ─────────────────────────────────────────────────────────────────────
+auth.bluefox.cafe {
+    import security_headers
+    route /auth* {
+        authenticate with foundryauth
+    }
+}
+
+# ─────────────────────────────────────────────────────────────────────
+# Foundry games - Discord-gated
+# ─────────────────────────────────────────────────────────────────────
+starwars.bluefox.cafe {
+    import gated
+    reverse_proxy foundry-starwars:30000
+    encode zstd gzip
+}
+
+beastworld.bluefox.cafe {
+    import gated
+    reverse_proxy foundry-beastworld:30000
+    encode zstd gzip
+}
+
+# Add new games by copying a block above.
+
+# ─────────────────────────────────────────────────────────────────────
+# Monitoring (also Discord-gated)
+# ─────────────────────────────────────────────────────────────────────
+kuma.bluefox.cafe {
+    import gated
+    reverse_proxy uptime-kuma:3001
+}
+
+logs.bluefox.cafe {
+    import gated
+    reverse_proxy dozzle:8080
+}
+
+# ─────────────────────────────────────────────────────────────────────
+# Apex - redirect to auth portal landing
+# ─────────────────────────────────────────────────────────────────────
+bluefox.cafe {
+    import security_headers
+    redir https://auth.bluefox.cafe/auth/portal 302
+}
