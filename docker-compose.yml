@@ -10,6 +10,14 @@
 # All inter-container traffic goes over the `web` bridge network.
 # Foundry containers do NOT publish ports - only Caddy reaches them.
 
+# Default log driver settings, applied to every service via YAML anchor.
+# Without this, json-file logs grow unbounded and eventually fill the VPS disk.
+x-logging: &default-logging
+  driver: json-file
+  options:
+    max-size: "10m"
+    max-file: "3"
+
 services:
   # ─────────────────────────────────────────────────────────────────────
   # Reverse proxy + TLS + Discord OAuth gate
@@ -18,9 +26,20 @@ services:
     # caddy-security ships Caddy + the security/auth plugins compiled in.
     # We can't use the standard caddy:2-alpine image because we need the
     # `security {}` Caddyfile directive which comes from the plugin.
-    image: ghcr.io/authcrunch/authcrunch:latest
+    #
+    # Pinned to an exact version (NOT :latest) and excluded from Watchtower.
+    # Reason: this container is the auth gate for everything else. A bad
+    # update at 05:00 UTC would silently take the whole stack offline.
+    # Upstream only publishes patch tags (v1.0.41, v1.0.40, ...) - no rolling
+    # `v1` tag last we checked, so auto-tracking minors isn't possible via
+    # image pinning. To bump: read the authcrunch release notes, change the
+    # tag below, then `docker compose pull caddy && docker compose up -d caddy`.
+    image: ghcr.io/authcrunch/authcrunch:v1.0.41
     container_name: caddy
     restart: unless-stopped
+    labels:
+      com.centurylinklabs.watchtower.enable: "false"
+    logging: *default-logging
     ports:
       - "80:80"        # ACME HTTP-01 challenges + redirect to HTTPS
       - "443:443"      # HTTPS
@@ -46,16 +65,17 @@ services:
   # Foundry game instances
   # ─────────────────────────────────────────────────────────────────────
   # One container per game. Each has its own license, volume, and DM creds.
-  # Pinned to release-13 so Watchtower won't yank them to v14 unannounced.
+  # Pinned to release-14 so Watchtower won't yank them to v15 unannounced.
   # `init: true` runs tini as PID 1 for clean signal handling on Node.
   # `mem_limit` caps RAM per instance - protects the box from a runaway one.
 
   foundry-starwars:
-    image: felddy/foundryvtt:release-13
+    image: felddy/foundryvtt:release-14
     container_name: foundry-starwars
     restart: unless-stopped
     init: true
     mem_limit: 2g
+    logging: *default-logging
     environment:
       FOUNDRY_USERNAME:    ${FOUNDRY_USERNAME_STARWARS}
       FOUNDRY_PASSWORD:    ${FOUNDRY_PASSWORD_STARWARS}
@@ -70,11 +90,12 @@ services:
     networks: [web]
 
   foundry-beastworld:
-    image: felddy/foundryvtt:release-13
+    image: felddy/foundryvtt:release-14
     container_name: foundry-beastworld
     restart: unless-stopped
     init: true
     mem_limit: 2g
+    logging: *default-logging
     environment:
       FOUNDRY_USERNAME:    ${FOUNDRY_USERNAME_BEASTWORLD}
       FOUNDRY_PASSWORD:    ${FOUNDRY_PASSWORD_BEASTWORLD}
@@ -99,6 +120,7 @@ services:
     image: louislam/uptime-kuma:1
     container_name: uptime-kuma
     restart: unless-stopped
+    logging: *default-logging
     volumes:
       - ./data/uptime-kuma:/app/data
     networks: [web]
@@ -107,6 +129,7 @@ services:
     image: amir20/dozzle:latest
     container_name: dozzle
     restart: unless-stopped
+    logging: *default-logging
     environment:
       DOZZLE_NO_ANALYTICS: "true"
     volumes:
@@ -122,6 +145,7 @@ services:
     image: containrrr/watchtower:latest
     container_name: watchtower
     restart: unless-stopped
+    logging: *default-logging
     environment:
       WATCHTOWER_CLEANUP: "true"           # remove old images after update
       WATCHTOWER_SCHEDULE: "0 0 5 * * *"   # 05:00 UTC daily (matches skypaw)
