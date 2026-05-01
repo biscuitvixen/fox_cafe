@@ -18,6 +18,26 @@ x-logging: &default-logging
     max-size: "10m"
     max-file: "3"
 
+# Shared config for every Foundry game container. Per-game services merge
+# this with `<<: *foundry-base` and override the bits that differ
+# (container_name, hostname, license env vars, data volume).
+x-foundry-base: &foundry-base
+  image: felddy/foundryvtt:release-14
+  restart: unless-stopped
+  init: true
+  mem_limit: 2g
+  logging: *default-logging
+  networks: [web]
+
+# Env vars that are identical across every game. Per-game `environment:`
+# blocks merge this in via `<<: *foundry-env` and add their own DM creds,
+# license, and hostname on top.
+x-foundry-env: &foundry-env
+  FOUNDRY_PROXY_SSL:  "true"   # Foundry emits https:// URLs (Caddy terminates TLS)
+  FOUNDRY_PROXY_PORT: "443"
+  FOUNDRY_TELEMETRY:  "false"
+  TIMEZONE:           Europe/London
+
 services:
   # ─────────────────────────────────────────────────────────────────────
   # Reverse proxy + TLS + Discord OAuth gate
@@ -64,54 +84,37 @@ services:
   # ─────────────────────────────────────────────────────────────────────
   # Foundry game instances
   # ─────────────────────────────────────────────────────────────────────
-  # One container per game. Each has its own license, volume, and DM creds.
-  # Pinned to release-14 so Watchtower won't yank them to v15 unannounced.
-  # `init: true` runs tini as PID 1 for clean signal handling on Node.
-  # `mem_limit` caps RAM per instance - protects the box from a runaway one.
+  # One container per game. Shared config lives in the `x-foundry-base` and
+  # `x-foundry-env` anchors at the top of this file - each game block only
+  # has to specify what's actually unique to that game.
 
   foundry-starwars:
-    image: felddy/foundryvtt:release-14
+    <<: *foundry-base
     container_name: foundry-starwars
-    restart: unless-stopped
-    init: true
-    mem_limit: 2g
-    logging: *default-logging
     environment:
+      <<: *foundry-env
       FOUNDRY_USERNAME:    ${FOUNDRY_USERNAME_STARWARS}
       FOUNDRY_PASSWORD:    ${FOUNDRY_PASSWORD_STARWARS}
       FOUNDRY_LICENSE_KEY: ${FOUNDRY_LICENSE_STARWARS}
       FOUNDRY_HOSTNAME:    starwars.bluefox.cafe
-      FOUNDRY_PROXY_SSL:   "true"   # Foundry emits https:// URLs (we terminate TLS at Caddy)
-      FOUNDRY_PROXY_PORT:  "443"
-      FOUNDRY_TELEMETRY:   "false"
-      TIMEZONE:            Europe/London
     volumes:
       - ./data/foundry-starwars:/data
-    networks: [web]
 
   foundry-beastworld:
-    image: felddy/foundryvtt:release-14
+    <<: *foundry-base
     container_name: foundry-beastworld
-    restart: unless-stopped
-    init: true
-    mem_limit: 2g
-    logging: *default-logging
     environment:
+      <<: *foundry-env
       FOUNDRY_USERNAME:    ${FOUNDRY_USERNAME_BEASTWORLD}
       FOUNDRY_PASSWORD:    ${FOUNDRY_PASSWORD_BEASTWORLD}
       FOUNDRY_LICENSE_KEY: ${FOUNDRY_LICENSE_BEASTWORLD}
       FOUNDRY_HOSTNAME:    beastworld.bluefox.cafe
-      FOUNDRY_PROXY_SSL:   "true"
-      FOUNDRY_PROXY_PORT:  "443"
-      FOUNDRY_TELEMETRY:   "false"
-      TIMEZONE:            Europe/London
     volumes:
       - ./data/foundry-beastworld:/data
-    networks: [web]
 
-  # Add foundry-game3, foundry-game4 by duplicating the block above.
-  # Don't forget to: add per-game env vars to .env, declare the volume below,
-  # add the Caddyfile site block, and add the Uptime Kuma monitor.
+  # To add a game: copy a block above, swap the suffix, add matching
+  # FOUNDRY_*_<NAME> vars to .env, add the Caddyfile site block, and add
+  # the Uptime Kuma monitor (point it at the internal docker hostname).
 
   # ─────────────────────────────────────────────────────────────────────
   # Monitoring
