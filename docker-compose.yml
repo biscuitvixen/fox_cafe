@@ -166,19 +166,19 @@ services:
   # ─────────────────────────────────────────────────────────────────────
   # Auto-updates
   # ─────────────────────────────────────────────────────────────────────
-  watchtower:
-    image: containrrr/watchtower:latest
-    container_name: watchtower
-    restart: unless-stopped
-    logging: *default-logging
-    environment:
-      WATCHTOWER_CLEANUP: "true"           # remove old images after update
-      WATCHTOWER_SCHEDULE: "0 0 5 * * *"   # 05:00 UTC daily (matches skypaw)
-      WATCHTOWER_INCLUDE_RESTARTING: "true"
-      WATCHTOWER_NOTIFICATION_URL: ${WATCHTOWER_DISCORD_WEBHOOK}
-      WATCHTOWER_NOTIFICATIONS: shoutrrr
-    volumes:
-      - /var/run/docker.sock:/var/run/docker.sock
+  # watchtower:
+  #   image: containrrr/watchtower:latest
+  #   container_name: watchtower
+  #   restart: unless-stopped
+  #   logging: *default-logging
+  #   environment:
+  #     WATCHTOWER_CLEANUP: "true"           # remove old images after update
+  #     WATCHTOWER_SCHEDULE: "0 0 5 * * *"   # 05:00 UTC daily (matches skypaw)
+  #     WATCHTOWER_INCLUDE_RESTARTING: "true"
+  #     WATCHTOWER_NOTIFICATION_URL: ${WATCHTOWER_DISCORD_WEBHOOK}
+  #     WATCHTOWER_NOTIFICATIONS: shoutrrr
+  #   volumes:
+  #     - /var/run/docker.sock:/var/run/docker.sock
 
   # ─────────────────────────────────────────────────────────────────────
   # CrowdSec - commented out, future addition
