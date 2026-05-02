@@ -27,7 +27,7 @@
 
         # The auth portal - owns the OAuth flow + JWT issuance. Its built-in
         # home page UI is intentionally not linked from anywhere; we serve our
-        # own services landing page instead (see services.bluefox.cafe below).
+        # own landing page instead (see dnd.bluefox.cafe below).
         authentication portal foundryauth {
             crypto default token lifetime 604800
             crypto key sign-verify {$JWT_SHARED_KEY}
@@ -87,8 +87,8 @@
         # Authorization policies (one per access tier)
         # ─────────────────────────────────────────────────────────────
 
-        # Services landing page - any guild member or admin.
-        authorization policy services_policy {
+        # DnD landing page - any guild member or admin.
+        authorization policy dnd_policy {
             set auth url https://auth.bluefox.cafe/auth/
             crypto key verify {$JWT_SHARED_KEY}
             crypto default token name AUTHP_SESSION_ID
@@ -194,9 +194,9 @@
     }
 }
 
-(gated_services) {
+(gated_dnd) {
     import security_headers
-    authorize with services_policy
+    authorize with dnd_policy
 }
 
 (gated_beastworld) {
@@ -215,11 +215,11 @@
 }
 
 # ─────────────────────────────────────────────────────────────────────
-# Apex - public linktree-style landing page
+# Apex - public homepage
 # ─────────────────────────────────────────────────────────────────────
 bluefox.cafe {
     import security_headers
-    root * /srv/linktree
+    root * /srv/homepage
     file_server
     encode zstd gzip
 }
@@ -235,12 +235,12 @@ auth.bluefox.cafe {
 }
 
 # ─────────────────────────────────────────────────────────────────────
-# Services landing - gated (any guild member or admin)
+# DnD landing - gated (any guild member or admin)
 # Replaces the authcrunch portal home page.
 # ─────────────────────────────────────────────────────────────────────
-services.bluefox.cafe {
-    import gated_services
-    root * /srv/services
+dnd.bluefox.cafe {
+    import gated_dnd
+    root * /srv/dnd
     file_server
     encode zstd gzip
 }

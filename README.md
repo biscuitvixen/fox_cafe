@@ -40,8 +40,7 @@ guild → role → policy chain.
      `beastworld_policy`).
    - Add a `(gated_gamename)` snippet and a `gamename.bluefox.cafe { ... }`
      site block importing it.
-4. **Services page**: add a card for the new game in
-   `caddy/services/index.html`.
+4. **DnD page**: add a card for the new game in `caddy/dnd/index.html`.
 5. **Uptime Kuma**: add a monitor pointing at `http://foundry-gamename:30000`
    (internal docker hostname - see operations note below).
 6. `docker compose up -d`.
@@ -84,9 +83,9 @@ Use these targets instead (they resolve over the `web` bridge network):
 
 ## URLs
 
-- https://bluefox.cafe - public landing (linktree, no auth)
+- https://bluefox.cafe - public homepage (no auth)
 - https://auth.bluefox.cafe - Discord login (OAuth callback)
-- https://services.bluefox.cafe - gated service index (any guild member)
+- https://dnd.bluefox.cafe - gated landing page (any guild member)
 - https://beastworld.bluefox.cafe - Beastworld campaign (Beastworld guild + admin)
 - https://starwars.bluefox.cafe - Star Wars campaign (Starwars guild + admin)
 - https://test.bluefox.cafe - sandbox Foundry (admin only)
@@ -109,7 +108,7 @@ Roles assigned by the Caddyfile transforms:
 
 Policies (one per access tier):
 
-- `services_policy`   - `authp/member` or `authp/admin`
+- `dnd_policy`        - `authp/member` or `authp/admin`
 - `beastworld_policy` - `authp/guild_beastworld` or `authp/admin`
 - `starwars_policy`   - `authp/guild_starwars` or `authp/admin`
 - `admin_policy`      - `authp/admin` only

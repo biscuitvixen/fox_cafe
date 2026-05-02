@@ -72,8 +72,8 @@ services:
       - "443:443/udp"  # HTTP/3 (QUIC) - better latency for transatlantic players
     volumes:
       - ./caddy/Caddyfile:/etc/caddy/Caddyfile:ro
-      - ./caddy/linktree:/srv/linktree:ro     # public landing page
-      - ./caddy/services:/srv/services:ro     # gated services list
+      - ./caddy/homepage:/srv/homepage:ro     # public landing page
+      - ./caddy/dnd:/srv/dnd:ro               # gated dnd landing page
       - ./data/caddy/data:/data        # ACME certs + state. BACK THIS UP.
       - ./data/caddy/config:/config
     environment:

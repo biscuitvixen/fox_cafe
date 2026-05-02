@@ -1,0 +1,109 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>DnD · bluefox.cafe</title>
+    <script src="https://cdn.tailwindcss.com"></script>
+    <script>
+        tailwind.config = {
+            theme: {
+                extend: {
+                    colors: {
+                        bg:      '#1e1e28',
+                        card:    '#30303a',
+                        accent:  '#0c83d5',
+                        accent2: '#24d962',
+                    },
+                    boxShadow: {
+                        float: '0 10px 30px -8px rgba(0,0,0,0.55), 0 2px 6px rgba(0,0,0,0.3)',
+                        lift:  '0 18px 40px -12px rgba(0,0,0,0.6), 0 4px 10px rgba(12,131,213,0.18)',
+                    },
+                },
+            },
+        };
+    </script>
+    <script src="https://unpkg.com/vue@3/dist/vue.global.prod.js"></script>
+    <style>
+        body {
+            background:
+                radial-gradient(ellipse at 20% 0%, rgba(12,131,213,0.08), transparent 60%),
+                radial-gradient(ellipse at 80% 100%, rgba(36,217,98,0.06), transparent 60%),
+                #1e1e28;
+        }
+    </style>
+</head>
+<body class="text-white antialiased min-h-screen font-sans">
+    <div id="app" class="max-w-3xl mx-auto px-6 py-12">
+        <header class="mb-10">
+            <div class="flex items-center gap-3 mb-2">
+                <span class="inline-block w-2.5 h-2.5 rounded-full bg-accent2 shadow-[0_0_12px_rgba(36,217,98,0.7)]"></span>
+                <span class="text-xs uppercase tracking-widest text-white/50">signed in</span>
+            </div>
+            <h1 class="text-3xl font-bold tracking-tight mb-1">DnD</h1>
+            <p class="text-white/60 text-sm">
+                Your campaigns and tools - pick one below.
+                Back to <a href="https://bluefox.cafe" class="text-accent hover:text-accent2 transition-colors underline decoration-white/20 underline-offset-4">bluefox.cafe</a>.
+            </p>
+        </header>
+
+        <section v-for="group in groups" :key="group.label" class="mb-8">
+            <h2 class="text-xs uppercase tracking-widest text-white/40 mb-3">{{ group.label }}</h2>
+            <div class="grid gap-3 sm:grid-cols-2">
+                <a v-for="svc in group.items"
+                   :key="svc.href"
+                   :href="svc.href"
+                   class="group relative block p-5 rounded-2xl bg-card ring-1 ring-white/5
+                          shadow-float transition-all duration-200
+                          hover:-translate-y-0.5 hover:shadow-lift hover:ring-accent/40">
+                    <div class="flex items-start gap-3">
+                        <div class="text-2xl">{{ svc.icon }}</div>
+                        <div class="min-w-0">
+                            <div class="font-semibold text-base flex items-center gap-2">
+                                {{ svc.name }}
+                                <span class="text-white/30 text-xs uppercase tracking-wider"
+                                      :class="svc.tier === 'admin' ? 'text-accent2/70' : ''">
+                                    {{ svc.tier }}
+                                </span>
+                            </div>
+                            <div class="text-sm text-white/55 mt-0.5">{{ svc.desc }}</div>
+                        </div>
+                        <div class="ml-auto text-white/30 group-hover:text-accent transition-colors">→</div>
+                    </div>
+                </a>
+            </div>
+        </section>
+
+        <footer class="mt-10 text-xs text-white/40 text-center">
+            "Access denied" on a service means your Discord roles don't include it.
+        </footer>
+    </div>
+
+    <script>
+        const { createApp } = Vue;
+        createApp({
+            data() {
+                return {
+                    groups: [
+                        {
+                            label: 'Games',
+                            items: [
+                                { name: 'Beastworld', icon: '🐾', desc: 'Foundry VTT campaign', tier: 'beastworld', href: 'https://beastworld.bluefox.cafe' },
+                                { name: 'Star Wars',  icon: '⚔️', desc: 'Foundry VTT campaign', tier: 'starwars',   href: 'https://starwars.bluefox.cafe'   },
+                            ],
+                        },
+                        {
+                            label: 'Ops',
+                            items: [
+                                { name: 'Uptime Kuma', icon: '💓', desc: 'Service health monitoring', tier: 'admin', href: 'https://kuma.bluefox.cafe' },
+                                { name: 'Dozzle',      icon: '📜', desc: 'Container logs',            tier: 'admin', href: 'https://logs.bluefox.cafe' },
+                                { name: 'Test Foundry',icon: '🧪', desc: 'Sandbox instance',          tier: 'admin', href: 'https://test.bluefox.cafe' },
+                            ],
+                        },
+                    ],
+                };
+            },
+        }).mount('#app');
+    </script>
+</body>
+</html>
