@@ -22,13 +22,29 @@ docker compose logs -f caddy   # watch ACME issue real certs
 
 ## Adding a new game
 
-1. Add `FOUNDRY_*_GAMENAME` env vars to `.env` and `.env.example`
-2. Duplicate a `foundry-*` service block in `docker-compose.yml`
-   (the `./data/foundry-gamename` bind mount is created on first start)
-3. Add a `gamename.bluefox.cafe { ... }` block in `Caddyfile`
-4. Add Uptime Kuma monitor pointing at `http://foundry-gamename:30000`
-   (see operations note below)
-5. `docker compose up -d`
+Each game is gated by its own Discord guild. Adding one means wiring up a new
+guild → role → policy chain.
+
+1. **Env vars** (`.env` + `.env.example`):
+   - `DISCORD_GUILD_GAMENAME` (the guild ID gating this game)
+   - `FOUNDRY_*_GAMENAME` if using per-game DM credentials
+2. **Compose**: duplicate a `foundry-*` block in `docker-compose.yml`
+   (the `./data/foundry-gamename` bind mount is created on first start). Add
+   `DISCORD_GUILD_GAMENAME` to the `caddy:` `environment:` block too.
+3. **Caddyfile** - three additions:
+   - Add the new guild ID to `user_group_filters` in the `oauth identity
+     provider discord` block.
+   - Add a transform pair (game role + `authp/member`) keyed off the new
+     `DISCORD_GUILD_GAMENAME`.
+   - Add an `authorization policy gamename_policy` (mirror of
+     `beastworld_policy`).
+   - Add a `(gated_gamename)` snippet and a `gamename.bluefox.cafe { ... }`
+     site block importing it.
+4. **Services page**: add a card for the new game in
+   `caddy/services/index.html`.
+5. **Uptime Kuma**: add a monitor pointing at `http://foundry-gamename:30000`
+   (internal docker hostname - see operations note below).
+6. `docker compose up -d`.
 
 ## Backups (TODO)
 
@@ -68,9 +84,32 @@ Use these targets instead (they resolve over the `web` bridge network):
 
 ## URLs
 
-- https://bluefox.cafe - apex, redirects to auth portal
-- https://auth.bluefox.cafe - Discord login
-- https://starwars.bluefox.cafe - Star Wars campaign
-- https://beastworld.bluefox.cafe - Beastworld campaign
-- https://kuma.bluefox.cafe - uptime monitoring
-- https://logs.bluefox.cafe - container logs
+- https://bluefox.cafe - public landing (linktree, no auth)
+- https://auth.bluefox.cafe - Discord login (OAuth callback)
+- https://services.bluefox.cafe - gated service index (any guild member)
+- https://beastworld.bluefox.cafe - Beastworld campaign (Beastworld guild + admin)
+- https://starwars.bluefox.cafe - Star Wars campaign (Starwars guild + admin)
+- https://test.bluefox.cafe - sandbox Foundry (admin only)
+- https://kuma.bluefox.cafe - uptime monitoring (admin only)
+- https://logs.bluefox.cafe - container logs (admin only)
+
+## Auth model
+
+One Discord login produces one JWT cookie at the apex (`.bluefox.cafe`) that
+covers every subdomain. What the cookie *unlocks* depends on which roles the
+user has - the cookie is the same, the authorization differs per site.
+
+Roles assigned by the Caddyfile transforms:
+
+- `authp/guild_beastworld` - set if the user is in the Beastworld Discord guild
+- `authp/guild_starwars`   - set if the user is in the Starwars Discord guild
+- `authp/member`           - set if the user is in any of the above guilds
+- `authp/admin`            - set if the user's Discord ID matches `DISCORD_ADMIN_USER_ID`
+- `authp/user`              - set on every Discord login (compatibility for authcrunch internals; not used for service authorization)
+
+Policies (one per access tier):
+
+- `services_policy`   - `authp/member` or `authp/admin`
+- `beastworld_policy` - `authp/guild_beastworld` or `authp/admin`
+- `starwars_policy`   - `authp/guild_starwars` or `authp/admin`
+- `admin_policy`      - `authp/admin` only

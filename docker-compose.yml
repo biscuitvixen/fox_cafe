@@ -72,14 +72,18 @@ services:
       - "443:443/udp"  # HTTP/3 (QUIC) - better latency for transatlantic players
     volumes:
       - ./caddy/Caddyfile:/etc/caddy/Caddyfile:ro
+      - ./caddy/linktree:/srv/linktree:ro     # public landing page
+      - ./caddy/services:/srv/services:ro     # gated services list
       - ./data/caddy/data:/data        # ACME certs + state. BACK THIS UP.
       - ./data/caddy/config:/config
     environment:
-      ACME_EMAIL:            ${ACME_EMAIL}
-      JWT_SHARED_KEY:        ${JWT_SHARED_KEY}
-      DISCORD_CLIENT_ID:     ${DISCORD_CLIENT_ID}
-      DISCORD_CLIENT_SECRET: ${DISCORD_CLIENT_SECRET}
-      DISCORD_GUILD_ID:      ${DISCORD_GUILD_ID}
+      ACME_EMAIL:               ${ACME_EMAIL}
+      JWT_SHARED_KEY:           ${JWT_SHARED_KEY}
+      DISCORD_CLIENT_ID:        ${DISCORD_CLIENT_ID}
+      DISCORD_CLIENT_SECRET:    ${DISCORD_CLIENT_SECRET}
+      DISCORD_GUILD_BEASTWORLD: ${DISCORD_GUILD_BEASTWORLD}
+      DISCORD_GUILD_STARWARS:   ${DISCORD_GUILD_STARWARS}
+      DISCORD_ADMIN_USER_ID:    ${DISCORD_ADMIN_USER_ID}
     networks: [web]
     healthcheck:
       test: ["CMD-SHELL", "wget -q --tries=1 -O /dev/null --server-response http://localhost 2>&1 | grep -q 'HTTP/' || exit 1"]

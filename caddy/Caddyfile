@@ -8,69 +8,156 @@
     admin off
 
     # ─────────────────────────────────────────────────────────────────
-    # caddy-security: identity provider, auth portal, authorization policy
+    # caddy-security: identity provider, auth portal, authorization policies
     # ─────────────────────────────────────────────────────────────────
     security {
         # Discord as the OAuth identity provider.
-        # The `user_group_filters` directive is the magic: only members of
-        # the configured guild get the synthetic role
-        # `discord.com/<guild_id>/members` attached to their session token.
-        # Anyone NOT in the guild authenticates successfully against Discord
-        # but ends up with no useful role - denied by the policy below.
+        # `user_group_filters` accepts multiple guild IDs (space-separated).
+        # For each guild the user is in, authcrunch attaches a synthetic role
+        # `discord.com/<guild_id>/members` to their session token. We then
+        # map those guild roles to local roles in the transforms below.
         oauth identity provider discord {
             realm discord
             driver discord
             client_id     {$DISCORD_CLIENT_ID}
             client_secret {$DISCORD_CLIENT_SECRET}
             scopes identify guilds
-            user_group_filters {$DISCORD_GUILD_ID}
+            user_group_filters {$DISCORD_GUILD_BEASTWORLD} {$DISCORD_GUILD_STARWARS}
         }
 
-        # The auth portal - this is the user-facing login UI.
+        # The auth portal - owns the OAuth flow + JWT issuance. Its built-in
+        # home page UI is intentionally not linked from anywhere; we serve our
+        # own services landing page instead (see services.bluefox.cafe below).
         authentication portal foundryauth {
-            # Session cookie lifetime (7 days). When this expires, users get
-            # a silent redirect through Discord (no re-consent needed) and
-            # land back on the page they came from.
             crypto default token lifetime 604800
             crypto key sign-verify {$JWT_SHARED_KEY}
 
             enable identity provider discord
 
             # CRITICAL: cookie domain must be the apex, NOT a subdomain.
-            # This is what makes one login cover all your *.bluefox.cafe sites.
+            # This is what makes one login cover all *.bluefox.cafe sites.
             cookie domain bluefox.cafe
             cookie lifetime 604800
 
-            ui {
-                links {
-                    "Star Wars"   https://starwars.bluefox.cafe   icon "las la-jedi"
-                    "Beastworld"  https://beastworld.bluefox.cafe icon "las la-paw"
-                    "Test Game"   https://test.bluefox.cafe       icon "las la-dice"
-                    "Uptime"      https://kuma.bluefox.cafe       icon "las la-heartbeat"
-                    "Logs"        https://logs.bluefox.cafe       icon "las la-stream"
-                }
+            # Beastworld guild → game role + generic member role.
+            transform user {
+                match role discord.com/{$DISCORD_GUILD_BEASTWORLD}/members
+                action add role authp/guild_beastworld
+            }
+            transform user {
+                match role discord.com/{$DISCORD_GUILD_BEASTWORLD}/members
+                action add role authp/member
             }
 
-            # Translate Discord guild membership into a local role.
-            # Decoupling the Discord-specific role from our policy means
-            # adding a second auth provider later doesn't require rewriting
-            # the policy.
+            # Starwars guild → game role + generic member role.
+            transform user {
+                match role discord.com/{$DISCORD_GUILD_STARWARS}/members
+                action add role authp/guild_starwars
+            }
+            transform user {
+                match role discord.com/{$DISCORD_GUILD_STARWARS}/members
+                action add role authp/member
+            }
+
+            # Admin (me). authcrunch exposes the Discord user as
+            # sub=discord.com/<user_id>.
+            transform user {
+                match sub discord.com/{$DISCORD_ADMIN_USER_ID}
+                action add role authp/admin
+            }
+
+            # Compatibility role: authcrunch's own portal ACL wants
+            # authp/user on logged-in users. We don't expose the portal home,
+            # but keep this so /auth/* never surprises us. NO service
+            # authorizes on authp/user - only on guild_*, member, or admin.
             transform user {
                 match realm discord
                 action add role authp/user
             }
         }
 
-        # The authorization policy - applied to gated sites via `authorize with`.
-        # Allows users with the `authp/player` role, denies everyone else.
-        authorization policy player_policy {
+        # ─────────────────────────────────────────────────────────────
+        # Authorization policies (one per access tier)
+        # ─────────────────────────────────────────────────────────────
+
+        # Services landing page - any guild member or admin.
+        authorization policy services_policy {
             set auth url https://auth.bluefox.cafe/auth/
             crypto key verify {$JWT_SHARED_KEY}
             crypto default token name AUTHP_SESSION_ID
 
             acl rule {
-                comment "allow guild members"
-                match role authp/user
+                comment "admin everywhere"
+                match role authp/admin
+                allow stop
+            }
+            acl rule {
+                comment "any guild member"
+                match role authp/member
+                allow stop
+            }
+            acl rule {
+                comment "deny everyone else"
+                match any
+                deny stop
+            }
+        }
+
+        # Beastworld game - beastworld guild + admin.
+        authorization policy beastworld_policy {
+            set auth url https://auth.bluefox.cafe/auth/
+            crypto key verify {$JWT_SHARED_KEY}
+            crypto default token name AUTHP_SESSION_ID
+
+            acl rule {
+                comment "admin everywhere"
+                match role authp/admin
+                allow stop
+            }
+            acl rule {
+                comment "beastworld guild"
+                match role authp/guild_beastworld
+                allow stop
+            }
+            acl rule {
+                comment "deny everyone else"
+                match any
+                deny stop
+            }
+        }
+
+        # Starwars game - starwars guild + admin.
+        authorization policy starwars_policy {
+            set auth url https://auth.bluefox.cafe/auth/
+            crypto key verify {$JWT_SHARED_KEY}
+            crypto default token name AUTHP_SESSION_ID
+
+            acl rule {
+                comment "admin everywhere"
+                match role authp/admin
+                allow stop
+            }
+            acl rule {
+                comment "starwars guild"
+                match role authp/guild_starwars
+                allow stop
+            }
+            acl rule {
+                comment "deny everyone else"
+                match any
+                deny stop
+            }
+        }
+
+        # Admin-only - uptime, logs, anything ops.
+        authorization policy admin_policy {
+            set auth url https://auth.bluefox.cafe/auth/
+            crypto key verify {$JWT_SHARED_KEY}
+            crypto default token name AUTHP_SESSION_ID
+
+            acl rule {
+                comment "admin only"
+                match role authp/admin
                 allow stop
             }
             acl rule {
@@ -100,9 +187,34 @@
     }
 }
 
-(gated) {
+(gated_services) {
     import security_headers
-    authorize with player_policy
+    authorize with services_policy
+}
+
+(gated_beastworld) {
+    import security_headers
+    authorize with beastworld_policy
+}
+
+(gated_starwars) {
+    import security_headers
+    authorize with starwars_policy
+}
+
+(gated_admin) {
+    import security_headers
+    authorize with admin_policy
+}
+
+# ─────────────────────────────────────────────────────────────────────
+# Apex - public linktree-style landing page
+# ─────────────────────────────────────────────────────────────────────
+bluefox.cafe {
+    import security_headers
+    root * /srv/linktree
+    file_server
+    encode zstd gzip
 }
 
 # ─────────────────────────────────────────────────────────────────────
@@ -116,45 +228,52 @@ auth.bluefox.cafe {
 }
 
 # ─────────────────────────────────────────────────────────────────────
-# Foundry games - Discord-gated
+# Services landing - gated (any guild member or admin)
+# Replaces the authcrunch portal home page.
 # ─────────────────────────────────────────────────────────────────────
+services.bluefox.cafe {
+    import gated_services
+    root * /srv/services
+    file_server
+    encode zstd gzip
+}
+
+# ─────────────────────────────────────────────────────────────────────
+# Foundry games - gated per guild
+# ─────────────────────────────────────────────────────────────────────
+
+# Sandbox / test instance - admin-only (no guild attached).
 test.bluefox.cafe {
-    import gated
+    import gated_admin
     reverse_proxy foundry-test:30000
     encode zstd gzip
 }
 
 beastworld.bluefox.cafe {
-    import gated
+    import gated_beastworld
     reverse_proxy foundry-beastworld:30000
     encode zstd gzip
 }
 
 # starwars.bluefox.cafe {
-#     import gated
+#     import gated_starwars
 #     reverse_proxy foundry-starwars:30000
 #     encode zstd gzip
 # }
 
-# Add new games by copying a block above.
+# Add a new game by copying a block above and pointing it at the matching
+# `gated_<guild>` snippet. New guild → also add: env var, user_group_filters
+# arg, transform pair, and authorization policy.
 
 # ─────────────────────────────────────────────────────────────────────
-# Monitoring (also Discord-gated)
+# Monitoring - admin-only
 # ─────────────────────────────────────────────────────────────────────
 kuma.bluefox.cafe {
-    import gated
+    import gated_admin
     reverse_proxy uptime-kuma:3001
 }
 
 logs.bluefox.cafe {
-    import gated
+    import gated_admin
     reverse_proxy dozzle:8080
-}
-
-# ─────────────────────────────────────────────────────────────────────
-# Apex - redirect to auth portal landing
-# ─────────────────────────────────────────────────────────────────────
-bluefox.cafe {
-    import security_headers
-    redir https://auth.bluefox.cafe/auth/portal 302
 }
