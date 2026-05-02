@@ -112,7 +112,7 @@ services:
 
   foundry-beastworld:
     <<: *foundry-base
-    image: felddy/foundryvtt:13.348
+    image: felddy/foundryvtt:13 # This game is still on v13, pinned to the latest v13 patch
     container_name: foundry-beastworld
     environment:
       <<: *foundry-env
