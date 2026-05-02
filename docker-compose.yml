@@ -42,7 +42,7 @@ x-foundry-env: &foundry-env
   FOUNDRY_PROXY_SSL:  "true"   # Foundry emits https:// URLs (Caddy terminates TLS)
   FOUNDRY_PROXY_PORT: "443"
   FOUNDRY_TELEMETRY:  "false"
-  TIMEZONE:           Europe/London
+  TZ:                 Europe/London
 
 services:
   # ─────────────────────────────────────────────────────────────────────
@@ -112,6 +112,7 @@ services:
 
   foundry-beastworld:
     <<: *foundry-base
+    image: felddy/foundryvtt:13.348
     container_name: foundry-beastworld
     environment:
       <<: *foundry-env
