@@ -45,6 +45,7 @@
                 links {
                     "Star Wars"   https://starwars.bluefox.cafe   icon "las la-jedi"
                     "Beastworld"  https://beastworld.bluefox.cafe icon "las la-paw"
+                    "Test Game"   https://test.bluefox.cafe       icon "las la-dice"
                     "Uptime"      https://kuma.bluefox.cafe       icon "las la-heartbeat"
                     "Logs"        https://logs.bluefox.cafe       icon "las la-stream"
                 }
@@ -117,17 +118,23 @@ auth.bluefox.cafe {
 # ─────────────────────────────────────────────────────────────────────
 # Foundry games - Discord-gated
 # ─────────────────────────────────────────────────────────────────────
-starwars.bluefox.cafe {
+test.bluefox.cafe {
     import gated
-    reverse_proxy foundry-starwars:30000
+    reverse_proxy foundry-test:30000
     encode zstd gzip
 }
 
-beastworld.bluefox.cafe {
-    import gated
-    reverse_proxy foundry-beastworld:30000
-    encode zstd gzip
-}
+# starwars.bluefox.cafe {
+#     import gated
+#     reverse_proxy foundry-starwars:30000
+#     encode zstd gzip
+# }
+
+# beastworld.bluefox.cafe {
+#     import gated
+#     reverse_proxy foundry-beastworld:30000
+#     encode zstd gzip
+# }
 
 # Add new games by copying a block above.
 
