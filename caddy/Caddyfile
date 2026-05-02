@@ -124,15 +124,15 @@ test.bluefox.cafe {
     encode zstd gzip
 }
 
+beastworld.bluefox.cafe {
+    import gated
+    reverse_proxy foundry-beastworld:30000
+    encode zstd gzip
+}
+
 # starwars.bluefox.cafe {
 #     import gated
 #     reverse_proxy foundry-starwars:30000
-#     encode zstd gzip
-# }
-
-# beastworld.bluefox.cafe {
-#     import gated
-#     reverse_proxy foundry-beastworld:30000
 #     encode zstd gzip
 # }
 

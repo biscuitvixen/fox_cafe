@@ -99,12 +99,24 @@ services:
     container_name: foundry-test
     environment:
       <<: *foundry-env
-      FOUNDRY_USERNAME:    ${FOUNDRY_USERNAME_TEST}
-      FOUNDRY_PASSWORD:    ${FOUNDRY_PASSWORD_TEST}
-      FOUNDRY_LICENSE_KEY: ${FOUNDRY_LICENSE_TEST}
+      FOUNDRY_USERNAME:    ${FOUNDRY_USERNAME}
+      FOUNDRY_PASSWORD:    ${FOUNDRY_PASSWORD}
+      FOUNDRY_LICENSE_KEY: ${FOUNDRY_LICENSE}
       FOUNDRY_HOSTNAME:    test.bluefox.cafe
     volumes:
       - ./data/foundry-test:/data
+
+  foundry-beastworld:
+    <<: *foundry-base
+    container_name: foundry-beastworld
+    environment:
+      <<: *foundry-env
+      FOUNDRY_USERNAME:    ${FOUNDRY_USERNAME}
+      FOUNDRY_PASSWORD:    ${FOUNDRY_PASSWORD}
+      FOUNDRY_LICENSE_KEY: ${FOUNDRY_LICENSE}
+      FOUNDRY_HOSTNAME:    beastworld.bluefox.cafe
+    volumes:
+      - ./data/foundry-beastworld:/data
 
   # foundry-starwars:
   #   <<: *foundry-base
@@ -117,18 +129,6 @@ services:
   #     FOUNDRY_HOSTNAME:    starwars.bluefox.cafe
   #   volumes:
   #     - ./data/foundry-starwars:/data
-
-  # foundry-beastworld:
-  #   <<: *foundry-base
-  #   container_name: foundry-beastworld
-  #   environment:
-  #     <<: *foundry-env
-  #     FOUNDRY_USERNAME:    ${FOUNDRY_USERNAME_BEASTWORLD}
-  #     FOUNDRY_PASSWORD:    ${FOUNDRY_PASSWORD_BEASTWORLD}
-  #     FOUNDRY_LICENSE_KEY: ${FOUNDRY_LICENSE_BEASTWORLD}
-  #     FOUNDRY_HOSTNAME:    beastworld.bluefox.cafe
-  #   volumes:
-  #     - ./data/foundry-beastworld:/data
 
   # To add a game: copy a block above, swap the suffix, add matching
   # FOUNDRY_*_<NAME> vars to .env, add the Caddyfile site block, and add
