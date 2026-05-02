@@ -45,16 +45,17 @@ guild → role → policy chain.
    (internal docker hostname - see operations note below).
 6. `docker compose up -d`.
 
-## Backups (TODO)
+## Backups
 
-All persistent state lives under `./data/`:
+Nightly restic snapshot at **09:00 UTC** - see [backup/README.md](backup/README.md) for
+full setup instructions. The Foundry containers are stopped for the duration;
+Caddy and monitoring stay up. A shell `trap` guarantees containers restart even
+if restic errors.
 
-- `data/caddy/data` - ACME state. Losing this triggers Let's Encrypt rate limits.
-- `data/foundry-*` - game state, irreplaceable
-- `data/uptime-kuma` - uptime history
-- The repo itself (`docker-compose.yml`, `caddy/Caddyfile`, `.env`)
-
-Restic to TrueNAS over Tailscale. See SETUP.md (TODO).
+Quick reference:
+- Status: `systemctl status backup-fox-cafe`
+- Logs: `journalctl -u backup-fox-cafe -n 50`
+- List snapshots: `source /etc/restic/fox-cafe.env && restic snapshots`
 
 ## Operations
 
