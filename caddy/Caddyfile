@@ -39,6 +39,13 @@
             cookie domain bluefox.cafe
             cookie lifetime 604800
 
+            # Honour the redirect_url query param (which the policy auto-appends
+            # when bouncing unauthenticated users here). Without this directive
+            # authcrunch treats every off-portal redirect as untrusted and
+            # silently drops the user on the portal home after OAuth instead of
+            # sending them back where they came from.
+            trust login redirect uri domain suffix bluefox.cafe path prefix /
+
             # Beastworld guild → game role + generic member role.
             transform user {
                 match role discord.com/{$DISCORD_GUILD_BEASTWORLD}/members
