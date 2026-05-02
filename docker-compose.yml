@@ -103,9 +103,9 @@ services:
     container_name: foundry-test
     environment:
       <<: *foundry-env
-      FOUNDRY_USERNAME:    ${FOUNDRY_USERNAME}
-      FOUNDRY_PASSWORD:    ${FOUNDRY_PASSWORD}
-      FOUNDRY_LICENSE_KEY: ${FOUNDRY_LICENSE}
+      FOUNDRY_USERNAME:    ${FOUNDRY_USERNAME_BISCUIT}
+      FOUNDRY_PASSWORD:    ${FOUNDRY_PASSWORD_BISCUIT}
+      FOUNDRY_LICENSE_KEY: ${FOUNDRY_LICENSE_BISCUIT}
       FOUNDRY_HOSTNAME:    test.bluefox.cafe
     volumes:
       - ./data/foundry-test:/data
@@ -116,9 +116,9 @@ services:
     container_name: foundry-beastworld
     environment:
       <<: *foundry-env
-      FOUNDRY_USERNAME:    ${FOUNDRY_USERNAME}
-      FOUNDRY_PASSWORD:    ${FOUNDRY_PASSWORD}
-      FOUNDRY_LICENSE_KEY: ${FOUNDRY_LICENSE}
+      FOUNDRY_USERNAME:    ${FOUNDRY_USERNAME_RISUNA}
+      FOUNDRY_PASSWORD:    ${FOUNDRY_PASSWORD_RISUNA}
+      FOUNDRY_LICENSE_KEY: ${FOUNDRY_LICENSE_RISUNA}
       FOUNDRY_HOSTNAME:    beastworld.bluefox.cafe
     volumes:
       - ./data/foundry-beastworld:/data
