@@ -56,21 +56,21 @@
             # adding a second auth provider later doesn't require rewriting
             # the policy.
             transform user {
-                match origin discord
-                match roles "discord.com/{$DISCORD_GUILD_ID}/members"
-                action add role authp/player
+                match realm discord
+                action add role authp/user
             }
         }
 
         # The authorization policy - applied to gated sites via `authorize with`.
         # Allows users with the `authp/player` role, denies everyone else.
         authorization policy player_policy {
-            set auth url https://auth.bluefox.cafe/auth/oauth2/discord
+            set auth url https://auth.bluefox.cafe/auth/
             crypto key verify {$JWT_SHARED_KEY}
+            crypto default token name AUTHP_SESSION_ID
 
             acl rule {
                 comment "allow guild members"
-                match role authp/player
+                match role authp/user
                 allow stop
             }
             acl rule {
