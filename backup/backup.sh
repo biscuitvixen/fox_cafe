@@ -47,6 +47,7 @@ restic forget \
   --keep-daily 7 \
   --keep-weekly 4 \
   --keep-monthly 3 \
+  --keep-yearly 1 \
   --prune \
   --tag fox-cafe
 
