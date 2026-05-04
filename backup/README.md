@@ -82,7 +82,7 @@ mountpoint -q /mnt/tailscale-nas && echo "mounted OK"
 ### 6. Make the script executable
 
 ```bash
-chmod +x /home/biscuit/fox_cafe/backup/backup.sh
+chmod +x /home/biscuit/fox_cafe/prod/backup/backup.sh
 ```
 
 ### 7. Install the systemd units
@@ -96,7 +96,7 @@ After=docker.service
 [Service]
 Type=oneshot
 EnvironmentFile=/etc/restic/fox-cafe.env
-ExecStart=/home/biscuit/fox_cafe/backup/backup.sh
+ExecStart=/home/biscuit/fox_cafe/prod/backup/backup.sh
 User=biscuit
 ```
 
@@ -149,23 +149,23 @@ Restore a specific world to a temp location for inspection:
 ```bash
 restic-fc restore latest \
   --target /tmp/fox-cafe-restore \
-  --include "/home/biscuit/fox_cafe/data/foundry-beastworld/Data/worlds"
-# Files land at: /tmp/fox-cafe-restore/home/biscuit/fox_cafe/data/foundry-beastworld/Data/worlds/
+  --include "/home/biscuit/fox_cafe/prod/data/foundry-beastworld/Data/worlds"
+# Files land at: /tmp/fox-cafe-restore/home/biscuit/fox_cafe/prod/data/foundry-beastworld/Data/worlds/
 ```
 
 Restore one game entirely (stop it first):
 ```bash
-docker compose -f /home/biscuit/fox_cafe/docker-compose.yml stop foundry-beastworld
+docker compose -f /home/biscuit/fox_cafe/prod/docker-compose.yml stop foundry-beastworld
 restic-fc restore latest \
   --target / \
-  --include "/home/biscuit/fox_cafe/data/foundry-beastworld"
-docker compose -f /home/biscuit/fox_cafe/docker-compose.yml start foundry-beastworld
+  --include "/home/biscuit/fox_cafe/prod/data/foundry-beastworld"
+docker compose -f /home/biscuit/fox_cafe/prod/docker-compose.yml start foundry-beastworld
 ```
 
 Restore from a specific snapshot instead of `latest`:
 ```bash
 restic-fc snapshots          # find the snapshot ID
-restic-fc restore abc12345 --target / --include "/home/biscuit/fox_cafe/data/foundry-beastworld"
+restic-fc restore abc12345 --target / --include "/home/biscuit/fox_cafe/prod/data/foundry-beastworld"
 ```
 
 Full restore after VPS rebuild (restore from NAS copy if local repo is gone):
