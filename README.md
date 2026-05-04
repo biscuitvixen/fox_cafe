@@ -5,6 +5,7 @@ Hosting D&D Foundry instances behind Discord OAuth, on Hetzner CPX33 (atlas).
 ## Layout
 
 - `docker-compose.yml` - Docker Compose stack
+- `overlays/` - per-environment port overlays (`prod.yml`, etc.)
 - `caddy/Caddyfile` - reverse proxy + auth config
 - `data/` - bind-mounted state for every service (gitignored)
 - `.env` - secrets (NOT committed)
@@ -13,12 +14,26 @@ Hosting D&D Foundry instances behind Discord OAuth, on Hetzner CPX33 (atlas).
 ## Deploy
 
 ```bash
-cp .env.example .env  # fill in values
+cp .env.example .env  # fill in values, including COMPOSE_FILE for your environment
 chmod 600 .env
 docker compose pull
 docker compose up -d
 docker compose logs -f caddy   # watch ACME issue real certs
 ```
+
+### Environment overlays
+
+Ports are not published in the base `docker-compose.yml`. Each worktree's `.env`
+sets `COMPOSE_FILE` to merge the appropriate overlay:
+
+| Worktree | `COMPOSE_FILE` value |
+|----------|----------------------|
+| `prod`    | `docker-compose.yml:overlays/prod.yml` |
+| `staging` | `docker-compose.yml:overlays/staging.yml` |
+| `dev`     | `docker-compose.yml` |
+
+`overlays/prod.yml` publishes ports 80, 443, and 443/udp on the host.
+Create equivalent overlay files for staging/dev as needed (e.g. 8080/8443).
 
 ## Adding a new game
 

@@ -66,10 +66,6 @@ services:
     labels:
       com.centurylinklabs.watchtower.enable: "false"
     logging: *default-logging
-    ports:
-      - "80:80"        # ACME HTTP-01 challenges + redirect to HTTPS
-      - "443:443"      # HTTPS
-      - "443:443/udp"  # HTTP/3 (QUIC) - better latency for transatlantic players
     volumes:
       - ./caddy/Caddyfile:/etc/caddy/Caddyfile:ro
       - ./caddy/homepage:/srv/homepage:ro     # public landing page

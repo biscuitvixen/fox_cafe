@@ -1,0 +1,8 @@
+# Production overlay - publishes Caddy's ports to the host.
+# Merged automatically when COMPOSE_FILE includes this file (see .env).
+services:
+  caddy:
+    ports:
+      - "80:80"        # ACME HTTP-01 challenges + redirect to HTTPS
+      - "443:443"      # HTTPS
+      - "443:443/udp"  # HTTP/3 (QUIC) - better latency for transatlantic players
