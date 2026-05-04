@@ -28,16 +28,16 @@ RESTIC_REPOSITORY=/var/backups/fox-cafe
 export RESTIC_REPOSITORY
 
 # Stop Foundry containers - Caddy and monitoring stay up
-docker compose -f "$COMPOSE_DIR/docker-compose.yml" stop foundry-beastworld foundry-test
+docker compose -f "$COMPOSE_DIR/docker-compose.yml" stop foundry-beastworld foundry-starwars
 
 # Always restart on exit, whether backup succeeded, failed, or was killed
-trap 'docker compose -f "$COMPOSE_DIR/docker-compose.yml" start foundry-beastworld foundry-test' EXIT
+trap 'docker compose -f "$COMPOSE_DIR/docker-compose.yml" start foundry-beastworld foundry-starwars' EXIT
 
 restic backup \
   "$COMPOSE_DIR/data/foundry-beastworld/Data" \
   "$COMPOSE_DIR/data/foundry-beastworld/Config" \
-  "$COMPOSE_DIR/data/foundry-test/Data" \
-  "$COMPOSE_DIR/data/foundry-test/Config" \
+  "$COMPOSE_DIR/data/foundry-starwars/Data" \
+  "$COMPOSE_DIR/data/foundry-starwars/Config" \
   "$COMPOSE_DIR/data/caddy/data" \
   --exclude "*/container_cache" \
   --exclude "*/Logs" \

@@ -199,7 +199,7 @@
     authorize with dnd_policy
 }
 
-(gated_beastworld) {
+(gated_demiplane) {
     import security_headers
     authorize with beastworld_policy
 }
@@ -250,23 +250,23 @@ dnd.bluefox.cafe {
 # ─────────────────────────────────────────────────────────────────────
 
 # Sandbox / test instance - admin-only (no guild attached).
-test.bluefox.cafe {
-    import gated_admin
-    reverse_proxy foundry-test:30000
-    encode zstd gzip
-}
+# test.bluefox.cafe {
+#     import gated_admin
+#     reverse_proxy foundry-test:30000
+#     encode zstd gzip
+# }
 
 beastworld.bluefox.cafe {
-    import gated_beastworld
+    import gated_demiplane
     reverse_proxy foundry-beastworld:30000
     encode zstd gzip
 }
 
-# starwars.bluefox.cafe {
-#     import gated_starwars
-#     reverse_proxy foundry-starwars:30000
-#     encode zstd gzip
-# }
+starwars.bluefox.cafe {
+    import gated_demiplane
+    reverse_proxy foundry-starwars:30000
+    encode zstd gzip
+}
 
 # Add a new game by copying a block above and pointing it at the matching
 # `gated_<guild>` snippet. New guild → also add: env var, user_group_filters

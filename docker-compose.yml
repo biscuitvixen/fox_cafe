@@ -98,17 +98,17 @@ services:
   # `x-foundry-env` anchors at the top of this file - each game block only
   # has to specify what's actually unique to that game.
 
-  foundry-test:
-    <<: *foundry-base
-    container_name: foundry-test
-    environment:
-      <<: *foundry-env
-      FOUNDRY_USERNAME:    ${FOUNDRY_USERNAME_BISCUIT}
-      FOUNDRY_PASSWORD:    ${FOUNDRY_PASSWORD_BISCUIT}
-      FOUNDRY_LICENSE_KEY: ${FOUNDRY_LICENSE_BISCUIT}
-      FOUNDRY_HOSTNAME:    test.bluefox.cafe
-    volumes:
-      - ./data/foundry-test:/data
+  # foundry-test:
+  #   <<: *foundry-base
+  #   container_name: foundry-test
+  #   environment:
+  #     <<: *foundry-env
+  #     FOUNDRY_USERNAME:    ${FOUNDRY_USERNAME_BISCUIT}
+  #     FOUNDRY_PASSWORD:    ${FOUNDRY_PASSWORD_BISCUIT}
+  #     FOUNDRY_LICENSE_KEY: ${FOUNDRY_LICENSE_BISCUIT}
+  #     FOUNDRY_HOSTNAME:    test.bluefox.cafe
+  #   volumes:
+  #     - ./data/foundry-test:/data
 
   foundry-beastworld:
     <<: *foundry-base
@@ -123,17 +123,17 @@ services:
     volumes:
       - ./data/foundry-beastworld:/data
 
-  # foundry-starwars:
-  #   <<: *foundry-base
-  #   container_name: foundry-starwars
-  #   environment:
-  #     <<: *foundry-env
-  #     FOUNDRY_USERNAME:    ${FOUNDRY_USERNAME_STARWARS}
-  #     FOUNDRY_PASSWORD:    ${FOUNDRY_PASSWORD_STARWARS}
-  #     FOUNDRY_LICENSE_KEY: ${FOUNDRY_LICENSE_STARWARS}
-  #     FOUNDRY_HOSTNAME:    starwars.bluefox.cafe
-  #   volumes:
-  #     - ./data/foundry-starwars:/data
+  foundry-starwars:
+    <<: *foundry-base
+    container_name: foundry-starwars
+    environment:
+      <<: *foundry-env
+      FOUNDRY_USERNAME:    ${FOUNDRY_USERNAME_BISCUIT}
+      FOUNDRY_PASSWORD:    ${FOUNDRY_PASSWORD_BISCUIT}
+      FOUNDRY_LICENSE_KEY: ${FOUNDRY_LICENSE_BISCUIT}
+      FOUNDRY_HOSTNAME:    starwars.bluefox.cafe
+    volumes:
+      - ./data/foundry-starwars:/data
 
   # To add a game: copy a block above, swap the suffix, add matching
   # FOUNDRY_*_<NAME> vars to .env, add the Caddyfile site block, and add
