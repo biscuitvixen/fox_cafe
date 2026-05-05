@@ -284,3 +284,14 @@ logs.bluefox.cafe {
     import gated_admin
     reverse_proxy dozzle:8080
 }
+
+# ─────────────────────────────────────────────────────────────────────
+# Filebrowser - Discord-gated at the edge (any guild member), then
+# filebrowser's own user list is the authoritative ACL. Per-user scope
+# (which game's modules they can see) is set inside filebrowser.
+# ─────────────────────────────────────────────────────────────────────
+files.bluefox.cafe {
+    import gated_dnd
+    reverse_proxy filebrowser:80
+    encode zstd gzip
+}
