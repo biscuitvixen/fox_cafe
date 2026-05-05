@@ -18,8 +18,8 @@ Two-stage design:
 |------|----------|-----|
 | `data/foundry-beastworld/Data` | Worlds, modules, assets, systems | Irreplaceable campaign data |
 | `data/foundry-beastworld/Config` | License, options | Quick to recreate, but handy |
-| `data/foundry-test/Data` | Same | Same |
-| `data/foundry-test/Config` | Same | Same |
+| `data/foundry-starwars/Data` | Same | Same |
+| `data/foundry-starwars/Config` | Same | Same |
 | `data/caddy/data` | ACME certs + state | Let's Encrypt rate-limits re-issuance to 5/week per domain - losing this is painful |
 
 Not backed up: `data/uptime-kuma` (monitor config, easily recreated),
@@ -37,7 +37,6 @@ apt install restic   # or: https://restic.net
 
 ```bash
 sudo mkdir -p /var/backups/fox-cafe
-sudo chown biscuit:biscuit /var/backups/fox-cafe
 ```
 
 ### 3. Create the credentials file
@@ -50,7 +49,6 @@ sudo tee /etc/restic/fox-cafe.env > /dev/null <<EOF
 RESTIC_PASSWORD=your-strong-password-here
 EOF
 sudo chmod 600 /etc/restic/fox-cafe.env
-sudo chown biscuit:biscuit /etc/restic/fox-cafe.env
 ```
 
 ### 4. Initialise the local repository
@@ -97,7 +95,7 @@ After=docker.service
 Type=oneshot
 EnvironmentFile=/etc/restic/fox-cafe.env
 ExecStart=/home/biscuit/fox_cafe/prod/backup/backup.sh
-User=biscuit
+User=root
 ```
 
 Create `/etc/systemd/system/backup-fox-cafe.timer`:
@@ -128,9 +126,13 @@ systemctl list-timers backup-fox-cafe
 
 Check last run status and logs:
 ```bash
-systemctl status backup-fox-cafe
-journalctl -u backup-fox-cafe -n 50
+sudo systemctl status backup-fox-cafe
+sudo journalctl -u backup-fox-cafe -n 50
 ```
+
+Note: `sudo` is required because the service runs as root (needed to read
+`data/caddy/data/` which is root-owned by the Caddy container). Without it,
+journalctl shows `-- No entries --`.
 
 List snapshots:
 ```bash
