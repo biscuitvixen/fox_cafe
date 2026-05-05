@@ -168,18 +168,62 @@ services:
       - ./data/foundry-starwars/Data:/srv/starwars
     networks: [web]
 
+  # Docker socket proxy - sits between Dozzle and /var/run/docker.sock and
+  # only forwards the read-only endpoints Dozzle actually needs. Without
+  # this, anything that can talk to Dozzle's network is one HTTP call away
+  # from full root on the host (the `:ro` bind mount is not a real defence
+  # - the daemon itself doesn't enforce read-only over a Unix socket).
+  #
+  # Dozzle needs: CONTAINERS (list), EVENTS (stream), LOGS (read), INFO,
+  # VERSION. Everything else (EXEC, BUILD, IMAGES write, etc.) stays off.
+  # Lives on its own bridge network so nothing else in the stack can reach
+  # it - only Dozzle is attached.
+  docker-socket-proxy:
+    image: tecnativa/docker-socket-proxy:v0.4.2
+    container_name: docker-socket-proxy
+    restart: unless-stopped
+    logging: *default-logging
+    environment:
+      CONTAINERS: "1"
+      EVENTS:     "1"
+      LOGS:       "1"
+      INFO:       "1"
+      VERSION:    "1"
+      # Everything below is off by default in the upstream image; listed
+      # explicitly so future-you knows they were considered, not forgotten.
+      POST:       "0"
+      EXEC:       "0"
+      BUILD:      "0"
+      COMMIT:     "0"
+      IMAGES:     "0"
+      VOLUMES:    "0"
+      NETWORKS:   "0"
+      SERVICES:   "0"
+      TASKS:      "0"
+      SWARM:      "0"
+      NODES:      "0"
+      SECRETS:    "0"
+      CONFIGS:    "0"
+      SESSION:    "0"
+      DISTRIBUTION: "0"
+      PLUGINS:    "0"
+      SYSTEM:     "0"
+    volumes:
+      - /var/run/docker.sock:/var/run/docker.sock:ro
+    networks: [socket_proxy]
+
   dozzle:
     image: amir20/dozzle:v10.5.2
     container_name: dozzle
     restart: unless-stopped
     logging: *default-logging
+    depends_on:
+      - docker-socket-proxy
     environment:
       DOZZLE_NO_ANALYTICS: "true"
-    volumes:
-      # :ro is critical - Dozzle only reads from the docker socket.
-      # Without :ro, this container effectively has root on the host.
-      - /var/run/docker.sock:/var/run/docker.sock:ro
-    networks: [web]
+      # Talk to the proxy over TCP instead of mounting the host socket.
+      DOCKER_HOST: tcp://docker-socket-proxy:2375
+    networks: [web, socket_proxy]
 
   # ─────────────────────────────────────────────────────────────────────
   # Updates are handled manually for stability - no Watchtower.
@@ -208,3 +252,12 @@ networks:
   web:
     driver: bridge
     name: foundry_web   # explicit name so we don't get foundry-stack_web
+
+  # Isolated network shared only by Dozzle and the socket proxy.
+  # `internal: true` blocks outbound traffic from these containers to the
+  # internet - the proxy has no business calling out, and it removes one
+  # path for an attacker who lands inside it.
+  socket_proxy:
+    driver: bridge
+    name: foundry_socket_proxy
+    internal: true
