@@ -147,6 +147,31 @@ services:
       - ./data/uptime-kuma:/app/data
     networks: [web]
 
+  # Filebrowser - shared across all games. Per-user scoping is configured
+  # inside filebrowser itself (Settings → Users), not at the mount layer.
+  # Each game's modules dir is mounted under /srv/<game>/ so you can scope
+  # a user to e.g. /srv/starwars and they only see that game's modules.
+  #
+  # First-run setup (one-time):
+  #   mkdir -p ./data/filebrowser
+  #   touch   ./data/filebrowser/database.db
+  #   docker compose up -d filebrowser
+  #   docker logs filebrowser   # prints the initial admin password
+  # Then log in, change the admin password, and create per-user accounts
+  # with `Scope` set to the game subfolder they're allowed to touch.
+  filebrowser:
+    image: filebrowser/filebrowser:latest
+    container_name: filebrowser
+    restart: unless-stopped
+    logging: *default-logging
+    user: "1000:1000"   # match foundry UID so writes don't end up root-owned
+    volumes:
+      - ./data/filebrowser/database.db:/database.db
+      - ./data/filebrowser/settings.json:/.filebrowser.json:ro
+      - ./data/foundry-beastworld/Data/modules:/srv/beastworld
+      - ./data/foundry-starwars/Data/modules:/srv/starwars
+    networks: [web]
+
   dozzle:
     image: amir20/dozzle:latest
     container_name: dozzle

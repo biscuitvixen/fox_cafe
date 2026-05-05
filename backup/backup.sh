@@ -27,17 +27,19 @@ COMPOSE_DIR="$(cd "$(dirname "$0")/.." && pwd)"
 RESTIC_REPOSITORY=/var/backups/fox-cafe
 export RESTIC_REPOSITORY
 
-# Stop Foundry containers - Caddy and monitoring stay up
-docker compose -f "$COMPOSE_DIR/docker-compose.yml" stop foundry-beastworld foundry-starwars
+# Stop Foundry + filebrowser containers - Caddy and monitoring stay up.
+# Filebrowser is included so its sqlite db is snapshotted with no writer attached.
+docker compose -f "$COMPOSE_DIR/docker-compose.yml" stop foundry-beastworld foundry-starwars filebrowser
 
 # Always restart on exit, whether backup succeeded, failed, or was killed
-trap 'docker compose -f "$COMPOSE_DIR/docker-compose.yml" start foundry-beastworld foundry-starwars' EXIT
+trap 'docker compose -f "$COMPOSE_DIR/docker-compose.yml" start foundry-beastworld foundry-starwars filebrowser' EXIT
 
 restic backup \
   "$COMPOSE_DIR/data/foundry-beastworld/Data" \
   "$COMPOSE_DIR/data/foundry-beastworld/Config" \
   "$COMPOSE_DIR/data/foundry-starwars/Data" \
   "$COMPOSE_DIR/data/foundry-starwars/Config" \
+  "$COMPOSE_DIR/data/filebrowser" \
   "$COMPOSE_DIR/data/caddy/data" \
   --exclude "*/container_cache" \
   --exclude "*/Logs" \
