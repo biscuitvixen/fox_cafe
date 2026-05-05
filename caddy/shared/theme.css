@@ -1,0 +1,16 @@
+/* Shared theme tokens + base styles for *.bluefox.cafe pages.
+   Palette mirrors theme.js so non-Tailwind CSS can use it too. */
+:root {
+    --sides:  #302f39;
+    --lining: #1e1d28;
+    --belly:  #497bd6;
+    --eyes:   #24d962;
+}
+
+/* Page background - same gradient on every site. */
+body {
+    background: linear-gradient(to bottom, var(--sides), var(--lining)) fixed;
+    color: #fff;
+    -webkit-font-smoothing: antialiased;
+    min-height: 100vh;
+}

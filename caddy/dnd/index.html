@@ -5,37 +5,12 @@
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>DnD · bluefox.cafe</title>
     <script src="https://cdn.tailwindcss.com"></script>
-    <script>
-        tailwind.config = {
-            theme: {
-                extend: {
-                    colors: {
-                        sides:  '#302f39',
-                        lining: '#1e1d28',
-                        belly:  '#497bd6',
-                        eyes:   '#24d962',
-                    },
-                    boxShadow: {
-                        float: '0 10px 30px -8px rgba(0,0,0,0.55), 0 2px 6px rgba(0,0,0,0.3)',
-                        lift:  '0 18px 40px -12px rgba(0,0,0,0.6), 0 4px 10px rgba(73,123,214,0.20)',
-                    },
-                    keyframes: {
-                        'pulse-dot': {
-                            '0%, 100%': { opacity: '1',   transform: 'scale(1)'    },
-                            '50%':      { opacity: '0.4', transform: 'scale(0.75)' },
-                        },
-                    },
-                    animation: {
-                        'pulse-dot': 'pulse-dot 2.5s ease-in-out infinite',
-                    },
-                },
-            },
-        };
-    </script>
+    <script src="https://bluefox.cafe/shared/theme.js"></script>
+    <link rel="stylesheet" href="https://bluefox.cafe/shared/theme.css">
     <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.5.2/css/all.min.css">
     <script src="https://unpkg.com/vue@3/dist/vue.global.prod.js"></script>
 </head>
-<body class="bg-gradient-to-b from-sides to-lining bg-fixed text-white antialiased min-h-screen font-sans">
+<body class="font-sans">
     <div id="app" class="max-w-3xl mx-auto px-6 py-10">
 
         <!-- Header / hero -->

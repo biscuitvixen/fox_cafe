@@ -219,8 +219,21 @@
 # ─────────────────────────────────────────────────────────────────────
 bluefox.cafe {
     import security_headers
-    root * /srv/homepage
-    file_server
+
+    # Shared theme assets (CSS/JS) used by every *.bluefox.cafe page.
+    # Served publicly so gated subdomains can <link>/<script> them without
+    # tripping the auth wall on each asset request.
+    handle_path /shared/* {
+        root * /srv/shared
+        file_server
+        header Cache-Control "public, max-age=3600"
+    }
+
+    handle {
+        root * /srv/homepage
+        file_server
+    }
+
     encode zstd gzip
 }
 

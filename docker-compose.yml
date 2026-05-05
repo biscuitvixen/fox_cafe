@@ -70,6 +70,7 @@ services:
       - ./caddy/Caddyfile:/etc/caddy/Caddyfile:ro
       - ./caddy/homepage:/srv/homepage:ro     # public landing page
       - ./caddy/dnd:/srv/dnd:ro               # gated dnd landing page
+      - ./caddy/shared:/srv/shared:ro         # shared theme assets, served at bluefox.cafe/shared/*
       - ./data/caddy/data:/data        # ACME certs + state. BACK THIS UP.
       - ./data/caddy/config:/config
     environment:
