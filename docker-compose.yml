@@ -18,6 +18,19 @@ x-logging: &default-logging
     max-size: "10m"
     max-file: "3"
 
+# Defence-in-depth defaults applied to every service. Shrinks the blast
+# radius if any container is ever compromised:
+#   - no-new-privileges: blocks setuid binaries from escalating
+#     (e.g. attacker can't `sudo` even if a setuid binary exists in image)
+#   - cap_drop ALL: strips every Linux capability (raw sockets, mount,
+#     ptrace, net_admin, etc). Services that need a specific cap back
+#     re-add it via `cap_add` (currently caddy and filebrowser).
+# Merge into a service with `<<: *hardening`.
+x-hardening: &hardening
+  security_opt:
+    - no-new-privileges:true
+  cap_drop: [ALL]
+
 # Shared config for every Foundry game container. Per-game services merge
 # this with `<<: *foundry-base` and override the bits that differ
 # (container_name, hostname, license env vars, data volume).
@@ -28,6 +41,7 @@ x-logging: &default-logging
 # as UID 1000 inside the container, which matches the default first-user
 # UID on the VPS - bind-mounted data ends up owned by the host user.
 x-foundry-base: &foundry-base
+  <<: *hardening
   image: felddy/foundryvtt:14
   restart: unless-stopped
   init: true
@@ -49,6 +63,7 @@ services:
   # Reverse proxy + TLS + Discord OAuth gate
   # ─────────────────────────────────────────────────────────────────────
   caddy:
+    <<: *hardening
     # caddy-security ships Caddy + the security/auth plugins compiled in.
     # We can't use the standard caddy:2-alpine image because we need the
     # `security {}` Caddyfile directive which comes from the plugin.
@@ -61,6 +76,12 @@ services:
     container_name: caddy
     restart: unless-stopped
     logging: *default-logging
+    # NET_BIND_SERVICE: bind 80/443.
+    # CHOWN/FOWNER/DAC_OVERRIDE/SETUID/SETGID: the authcrunch entrypoint
+    # fixes ownership on /data and may drop privileges before running
+    # caddy. Without these, existing cert files (owned UID 1000 from a
+    # prior image version) become unreadable on next start.
+    cap_add: [NET_BIND_SERVICE, CHOWN, FOWNER, DAC_OVERRIDE, SETUID, SETGID]
     volumes:
       - ./caddy/Caddyfile:/etc/caddy/Caddyfile:ro
       - ./caddy/homepage:/srv/homepage:ro     # public landing page
@@ -135,10 +156,15 @@ services:
   # Monitoring
   # ─────────────────────────────────────────────────────────────────────
   uptime-kuma:
+    <<: *hardening
     image: louislam/uptime-kuma:1
     container_name: uptime-kuma
     restart: unless-stopped
     logging: *default-logging
+    # Kuma's entrypoint uses `setpriv` to set the run user - needs SETUID
+    # and SETGID even when staying as root. Without these the container
+    # crash-loops on `setgroups: Operation not permitted`.
+    cap_add: [SETUID, SETGID]
     volumes:
       - ./data/uptime-kuma:/app/data
     networks: [web]
@@ -156,11 +182,13 @@ services:
   # Then log in, change the admin password, and create per-user accounts
   # with `Scope` set to the game subfolder they're allowed to touch.
   filebrowser:
+    <<: *hardening
     image: filebrowser/filebrowser:v2.63.3
     container_name: filebrowser
     restart: unless-stopped
     logging: *default-logging
     user: "1000:1000"   # match foundry UID so writes don't end up root-owned
+    cap_add: [NET_BIND_SERVICE]   # bind :80 as UID 1000
     volumes:
       - ./data/filebrowser/database.db:/database.db
       - ./data/filebrowser/settings.json:/.filebrowser.json:ro
@@ -179,6 +207,7 @@ services:
   # Lives on its own bridge network so nothing else in the stack can reach
   # it - only Dozzle is attached.
   docker-socket-proxy:
+    <<: *hardening
     image: tecnativa/docker-socket-proxy:v0.4.2
     container_name: docker-socket-proxy
     restart: unless-stopped
@@ -213,6 +242,7 @@ services:
     networks: [socket_proxy]
 
   dozzle:
+    <<: *hardening
     image: amir20/dozzle:v10.5.2
     container_name: dozzle
     restart: unless-stopped
