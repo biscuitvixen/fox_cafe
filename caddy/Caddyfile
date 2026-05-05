@@ -22,7 +22,9 @@
             client_id     {$DISCORD_CLIENT_ID}
             client_secret {$DISCORD_CLIENT_SECRET}
             scopes identify guilds
-            user_group_filters {$DISCORD_GUILD_BEASTWORLD} {$DISCORD_GUILD_STARWARS}
+            # Add additional guild IDs here as new Discord servers come online.
+            user_group_filters {$DISCORD_GUILD_DEMIPLANE}
+            # user_group_filters {$DISCORD_GUILD_DEMIPLANE} {$DISCORD_GUILD_EXAMPLE_2}
         }
 
         # The auth portal - owns the OAuth flow + JWT issuance. Its built-in
@@ -46,25 +48,28 @@
             # sending them back where they came from.
             trust login redirect uri domain suffix bluefox.cafe path prefix /
 
-            # Beastworld guild → game role + generic member role.
+            # Demiplane guild → guild-specific role + generic member role.
+            # One Discord server currently gates every game; if a game ever
+            # needs its own guild, copy the example block below.
             transform user {
-                match role discord.com/{$DISCORD_GUILD_BEASTWORLD}/members
-                action add role authp/guild_beastworld
+                match role discord.com/{$DISCORD_GUILD_DEMIPLANE}/members
+                action add role authp/guild_demiplane
             }
             transform user {
-                match role discord.com/{$DISCORD_GUILD_BEASTWORLD}/members
+                match role discord.com/{$DISCORD_GUILD_DEMIPLANE}/members
                 action add role authp/member
             }
 
-            # Starwars guild → game role + generic member role.
-            transform user {
-                match role discord.com/{$DISCORD_GUILD_STARWARS}/members
-                action add role authp/guild_starwars
-            }
-            transform user {
-                match role discord.com/{$DISCORD_GUILD_STARWARS}/members
-                action add role authp/member
-            }
+            # Template for a future second guild. Uncomment, swap the env var
+            # and role names, and add a matching authorization policy below.
+            # transform user {
+            #     match role discord.com/{$DISCORD_GUILD_EXAMPLE_2}/members
+            #     action add role authp/guild_example_2
+            # }
+            # transform user {
+            #     match role discord.com/{$DISCORD_GUILD_EXAMPLE_2}/members
+            #     action add role authp/member
+            # }
 
             # Admin (me). authcrunch exposes the Discord user as
             # sub=discord.com/<user_id>.
@@ -110,8 +115,10 @@
             }
         }
 
-        # Beastworld game - beastworld guild + admin.
-        authorization policy beastworld_policy {
+        # Demiplane games - demiplane guild + admin.
+        # Currently gates both beastworld and starwars; split into per-game
+        # policies if/when those games need separate guilds.
+        authorization policy demiplane_policy {
             set auth url https://auth.bluefox.cafe/auth/
             crypto key verify {$JWT_SHARED_KEY}
             crypto default token name AUTHP_SESSION_ID
@@ -122,8 +129,8 @@
                 allow stop
             }
             acl rule {
-                comment "beastworld guild"
-                match role authp/guild_beastworld
+                comment "demiplane guild"
+                match role authp/guild_demiplane
                 allow stop
             }
             acl rule {
@@ -133,8 +140,14 @@
             }
         }
 
-        # Starwars game - starwars guild + admin.
-        authorization policy starwars_policy {
+        # Template policy for a future second guild - admin + that guild.
+        # Safe to leave active: the matching transform that produces
+        # authp/guild_example_2 is commented out above, so this currently
+        # denies everyone except admin. Activate by (1) setting
+        # DISCORD_GUILD_EXAMPLE_2 in .env, (2) uncommenting the transform
+        # block above, (3) uncommenting the user_group_filters entry, and
+        # (4) importing gated_example_2 on the relevant site block.
+        authorization policy example_2_policy {
             set auth url https://auth.bluefox.cafe/auth/
             crypto key verify {$JWT_SHARED_KEY}
             crypto default token name AUTHP_SESSION_ID
@@ -145,8 +158,8 @@
                 allow stop
             }
             acl rule {
-                comment "starwars guild"
-                match role authp/guild_starwars
+                comment "example_2 guild"
+                match role authp/guild_example_2
                 allow stop
             }
             acl rule {
@@ -201,12 +214,12 @@
 
 (gated_demiplane) {
     import security_headers
-    authorize with beastworld_policy
+    authorize with demiplane_policy
 }
 
-(gated_starwars) {
+(gated_example_2) {
     import security_headers
-    authorize with starwars_policy
+    authorize with example_2_policy
 }
 
 (gated_admin) {
