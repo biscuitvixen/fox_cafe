@@ -45,6 +45,13 @@
             # because the OAuth callback redirect from discord.com needs
             # the cookie on a top-level navigation - `strict` would break
             # the login flow.
+            #
+            # NOTE: as of authcrunch v1.0.41, the SessionID cookie builder
+            # in go-authcrunch doesn't read this directive - only the
+            # access-token cookie path does. We're still protected because
+            # all current browsers default unmarked cookies to Lax. Keep
+            # the directive: it documents intent and will start applying
+            # to AUTHP_SESSION_ID if upstream fixes the omission.
             cookie samesite lax
 
             # Honour the redirect_url query param (which the policy auto-appends
