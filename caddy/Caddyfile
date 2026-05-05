@@ -40,6 +40,12 @@
             # This is what makes one login cover all *.bluefox.cafe sites.
             cookie domain bluefox.cafe
             cookie lifetime 604800
+            # CSRF defence: browser refuses to attach this cookie to
+            # cross-site POSTs / fetches / iframes. `lax` (not `strict`)
+            # because the OAuth callback redirect from discord.com needs
+            # the cookie on a top-level navigation - `strict` would break
+            # the login flow.
+            cookie samesite lax
 
             # Honour the redirect_url query param (which the policy auto-appends
             # when bouncing unauthenticated users here). Without this directive
