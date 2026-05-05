@@ -149,8 +149,8 @@ services:
 
   # Filebrowser - shared across all games. Per-user scoping is configured
   # inside filebrowser itself (Settings → Users), not at the mount layer.
-  # Each game's modules dir is mounted under /srv/<game>/ so you can scope
-  # a user to e.g. /srv/starwars and they only see that game's modules.
+  # Each game's Data dir is mounted under /srv/<game>/ so you can scope
+  # a user to e.g. /srv/starwars and they only see that game's data.
   #
   # First-run setup (one-time):
   #   mkdir -p ./data/filebrowser
@@ -168,8 +168,8 @@ services:
     volumes:
       - ./data/filebrowser/database.db:/database.db
       - ./data/filebrowser/settings.json:/.filebrowser.json:ro
-      - ./data/foundry-beastworld/Data/modules:/srv/beastworld
-      - ./data/foundry-starwars/Data/modules:/srv/starwars
+      - ./data/foundry-beastworld/Data:/srv/beastworld
+      - ./data/foundry-starwars/Data:/srv/starwars
     networks: [web]
 
   dozzle:
