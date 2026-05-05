@@ -53,18 +53,13 @@ services:
     # We can't use the standard caddy:2-alpine image because we need the
     # `security {}` Caddyfile directive which comes from the plugin.
     #
-    # Pinned to an exact version (NOT :latest) and excluded from Watchtower.
-    # Reason: this container is the auth gate for everything else. A bad
-    # update at 05:00 UTC would silently take the whole stack offline.
-    # Upstream only publishes patch tags (v1.0.41, v1.0.40, ...) - no rolling
-    # `v1` tag last we checked, so auto-tracking minors isn't possible via
-    # image pinning. To bump: read the authcrunch release notes, change the
-    # tag below, then `docker compose pull caddy && docker compose up -d caddy`.
+    # Pinned to an exact patch version. Upstream only publishes patch tags
+    # (v1.0.41, v1.0.40, ...) - no rolling `v1` tag last we checked. To
+    # bump: read the authcrunch release notes, change the tag below, then
+    # `docker compose pull caddy && docker compose up -d caddy`.
     image: ghcr.io/authcrunch/authcrunch:v1.0.41
     container_name: caddy
     restart: unless-stopped
-    labels:
-      com.centurylinklabs.watchtower.enable: "false"
     logging: *default-logging
     volumes:
       - ./caddy/Caddyfile:/etc/caddy/Caddyfile:ro
@@ -161,7 +156,7 @@ services:
   # Then log in, change the admin password, and create per-user accounts
   # with `Scope` set to the game subfolder they're allowed to touch.
   filebrowser:
-    image: filebrowser/filebrowser:latest
+    image: filebrowser/filebrowser:v2.63.3
     container_name: filebrowser
     restart: unless-stopped
     logging: *default-logging
@@ -174,7 +169,7 @@ services:
     networks: [web]
 
   dozzle:
-    image: amir20/dozzle:latest
+    image: amir20/dozzle:v10.5.2
     container_name: dozzle
     restart: unless-stopped
     logging: *default-logging
@@ -187,21 +182,11 @@ services:
     networks: [web]
 
   # ─────────────────────────────────────────────────────────────────────
-  # Auto-updates
+  # Updates are handled manually for stability - no Watchtower.
+  # Workflow: `docker compose pull <svc> && docker compose up -d <svc>`.
+  # Subscribe to upstream release feeds (Foundry, authcrunch, filebrowser,
+  # dozzle, kuma) so you know when patches land.
   # ─────────────────────────────────────────────────────────────────────
-  # watchtower:
-  #   image: containrrr/watchtower:latest
-  #   container_name: watchtower
-  #   restart: unless-stopped
-  #   logging: *default-logging
-  #   environment:
-  #     WATCHTOWER_CLEANUP: "true"           # remove old images after update
-  #     WATCHTOWER_SCHEDULE: "0 0 5 * * *"   # 05:00 UTC daily (matches skypaw)
-  #     WATCHTOWER_INCLUDE_RESTARTING: "true"
-  #     WATCHTOWER_NOTIFICATION_URL: ${WATCHTOWER_DISCORD_WEBHOOK}
-  #     WATCHTOWER_NOTIFICATIONS: shoutrrr
-  #   volumes:
-  #     - /var/run/docker.sock:/var/run/docker.sock
 
   # ─────────────────────────────────────────────────────────────────────
   # CrowdSec - commented out, future addition
