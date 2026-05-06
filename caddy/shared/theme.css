@@ -14,3 +14,18 @@ body {
     -webkit-font-smoothing: antialiased;
     min-height: 100vh;
 }
+
+/* Hero card - gradient banner used on landing/error pages. */
+.hero-card {
+    background:
+        linear-gradient(135deg, rgba(73,123,214,0.50) 0%, rgba(36,217,98,0.28) 100%),
+        var(--sides);
+}
+
+/* Glowing orbs used inside hero cards. */
+.orb-eyes  { background: radial-gradient(circle, var(--eyes)  0%, transparent 70%); }
+.orb-belly { background: radial-gradient(circle, var(--belly) 0%, transparent 70%); }
+
+/* Icon drop-shadow glows. */
+.glow-eyes  { filter: drop-shadow(0 0 14px rgba(36,217,98,0.55)); }
+.glow-belly { filter: drop-shadow(0 0 14px rgba(73,123,214,0.70)); }

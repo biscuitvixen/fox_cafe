@@ -7,33 +7,32 @@
     <script src="https://cdn.tailwindcss.com"></script>
     <script src="https://bluefox.cafe/shared/theme.js"></script>
     <link rel="stylesheet" href="https://bluefox.cafe/shared/theme.css">
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.5.2/css/all.min.css">
 </head>
 <body class="font-sans">
     <div class="flex items-center justify-center min-h-screen p-6">
-        <main class="w-full max-w-md text-center">
+        <main class="w-full max-w-md">
 
-            <div class="relative w-24 h-24 mx-auto mb-6">
-                <div class="w-24 h-24 rounded-full flex items-center justify-center text-4xl
-                            shadow-float ring-1 ring-white/10
-                            bg-gradient-to-br from-sides to-lining">
-                    🦊
-                </div>
-                <div class="absolute -bottom-1 -right-1 w-9 h-9 rounded-full flex items-center justify-center text-base
-                            bg-lining ring-2 ring-sides shadow-float">
-                    🔒
+            <!-- Hero card -->
+            <div class="hero-card relative overflow-hidden rounded-3xl mb-8 p-8 ring-1 ring-white/10 shadow-float text-center">
+                <div class="orb-belly absolute -top-16 -right-16 w-56 h-56 rounded-full opacity-55 blur-3xl"></div>
+                <div class="orb-eyes absolute -bottom-16 -left-16 w-56 h-56 rounded-full opacity-50 blur-3xl"></div>
+
+                <div class="relative">
+                    <div class="flex justify-center mb-5">
+                        <span class="text-6xl text-belly glow-belly"><i class="fa-solid fa-lock"></i></span>
+                    </div>
+                    <p class="text-8xl font-black tracking-tight mb-2
+                              bg-clip-text text-transparent bg-gradient-to-br from-belly to-eyes">
+                        403
+                    </p>
+                    <h1 class="text-2xl font-bold tracking-tight mb-1">Access denied</h1>
+                    <p class="text-white/60 text-sm leading-relaxed">
+                        Your Discord roles don't include access to this service.<br>
+                        If you think this is a mistake, check with the server admin.
+                    </p>
                 </div>
             </div>
-
-            <p class="text-8xl font-black tracking-tight mb-2
-                      bg-clip-text text-transparent bg-gradient-to-br from-belly to-eyes">
-                403
-            </p>
-
-            <h1 class="text-2xl font-bold tracking-tight mb-1">Access denied</h1>
-            <p class="text-white/60 text-sm mb-8 leading-relaxed">
-                Your Discord roles don't include access to this service.<br>
-                If you think this is a mistake, check with the server admin.
-            </p>
 
             <nav class="flex flex-col gap-3">
                 <a href="https://dnd.bluefox.cafe"
