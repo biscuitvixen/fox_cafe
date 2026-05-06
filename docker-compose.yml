@@ -182,9 +182,9 @@ services:
   #
   # First-run setup (one-time):
   #   mkdir -p ./data/filebrowser
-  #   touch   ./data/filebrowser/database.db
+  #   touch ./data/filebrowser/database.db   # must exist as a file before first start
   #   docker compose up -d filebrowser
-  #   docker logs filebrowser   # prints the initial admin password
+  #   docker compose logs filebrowser        # prints the initial admin password
   # Then log in, change the admin password, and create per-user accounts
   # with `Scope` set to the game subfolder they're allowed to touch.
   filebrowser:
@@ -197,7 +197,7 @@ services:
     cap_add: [NET_BIND_SERVICE]   # bind :80 as UID 1000
     volumes:
       - ./data/filebrowser/database.db:/database.db
-      - ./data/filebrowser/settings.json:/.filebrowser.json:ro
+      - ./data/filebrowser/settings.json:/config/settings.json:ro
       - ./data/foundry-beastworld/Data:/srv/beastworld
       - ./data/foundry-starwars/Data:/srv/starwars
     networks: [web]
