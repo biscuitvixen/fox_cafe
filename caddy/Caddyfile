@@ -320,6 +320,18 @@ bluefox.cafe {
         error 403
     }
 
+    # Admin-only preview routes for the themed error pages. Useful for
+    # iterating on the design without having to log out / break ACLs to
+    # trigger a real denial. Non-admins are bounced to /forbidden.
+    handle /preview/403 {
+        authorize with admin_policy
+        error 403
+    }
+    handle /preview/404 {
+        authorize with admin_policy
+        error 404
+    }
+
     handle {
         root * /srv/homepage
         file_server
