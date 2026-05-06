@@ -206,6 +206,33 @@
 # Reusable snippets - keep per-site config DRY
 # ─────────────────────────────────────────────────────────────────────
 
+# Strict CSP for the static landing pages (homepage, dnd). Blocks any
+# resource not loaded from one of the explicit origins below - even if an
+# attacker manages to inject HTML, they can't pull a payload from a
+# random domain.
+#
+# `'unsafe-inline'` on script-src/style-src is required because the pages
+# use inline <script> blocks for Vue templating and Tailwind's runtime
+# injects inline styles. Removing this would mean refactoring to nonces
+# or external files; out of scope for now. CSP still meaningfully
+# restricts the loadable origins despite the inline allowance.
+#
+# Do NOT import this on Foundry sites - Foundry's client uses inline
+# scripts, dynamic imports, and module-specific resources we don't
+# enumerate, so a strict CSP would break gameplay. The global
+# `frame-ancestors 'none'` from (security_headers) still applies there.
+(static_csp) {
+    header Content-Security-Policy "default-src 'self'; \
+        script-src 'self' 'unsafe-inline' https://cdn.tailwindcss.com https://unpkg.com; \
+        style-src  'self' 'unsafe-inline' https://cdnjs.cloudflare.com; \
+        font-src   'self' https://cdnjs.cloudflare.com data:; \
+        img-src    'self' data: https:; \
+        connect-src 'self'; \
+        frame-ancestors 'none'; \
+        base-uri 'self'; \
+        form-action 'self'"
+}
+
 (security_headers) {
     header {
         # HSTS: tell browsers to ALWAYS use HTTPS for this domain for 1 year.
@@ -254,6 +281,7 @@
 # ─────────────────────────────────────────────────────────────────────
 bluefox.cafe {
     import security_headers
+    import static_csp
 
     # Shared theme assets (CSS/JS) used by every *.bluefox.cafe page.
     # Served publicly so gated subdomains can <link>/<script> them without
@@ -288,6 +316,7 @@ auth.bluefox.cafe {
 # ─────────────────────────────────────────────────────────────────────
 dnd.bluefox.cafe {
     import gated_dnd
+    import static_csp
     root * /srv/dnd
     file_server
     encode zstd gzip
