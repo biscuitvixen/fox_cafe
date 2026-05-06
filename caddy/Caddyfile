@@ -260,20 +260,24 @@
     }
 }
 
-(gated_dnd) {
-    import security_headers
-    authorize with dnd_policy
-}
-
-(gated_demiplane) {
-    import security_headers
-    authorize with demiplane_policy
-}
-
-(gated_example_2) {
-    import security_headers
-    authorize with example_2_policy
-}
+# Currently unused - superseded by (gated_static_site) / (gated_proxy_site)
+# below, which fold these in alongside the bot-preview bypass. Kept
+# commented as a reference for the simplest possible "auth + headers"
+# bundle, in case a future site needs gating without a public preview.
+# (gated_dnd) {
+#     import security_headers
+#     authorize with dnd_policy
+# }
+#
+# (gated_demiplane) {
+#     import security_headers
+#     authorize with demiplane_policy
+# }
+#
+# (gated_example_2) {
+#     import security_headers
+#     authorize with example_2_policy
+# }
 
 (gated_admin) {
     import security_headers
@@ -302,6 +306,48 @@
         file_server
         header Cache-Control "public, max-age=300"
     }
+}
+
+# Full bundle for a gated static-file site. Wraps: security headers,
+# strict CSP, themed error pages, bot-preview bypass, and the auth gate
+# itself. Each call collapses to one `import` line in the site block.
+#
+#   args[0] = name (used for both /srv/previews/<name> and /srv/<name>)
+#   args[1] = authorization policy name (e.g. dnd_policy)
+(gated_static_site) {
+    import security_headers
+    import static_csp
+    import error_pages
+    import preview_bot {args[0]}
+
+    handle {
+        authorize with {args[1]}
+        root * /srv/{args[0]}
+        file_server
+    }
+
+    encode zstd gzip
+}
+
+# Full bundle for a gated reverse-proxy site (Foundry, filebrowser, etc).
+# Same as gated_static_site but proxies to an upstream and skips static_csp
+# - Foundry's client and filebrowser both rely on inline scripts and
+# dynamic resources that a strict CSP would break.
+#
+#   args[0] = preview directory name (under /srv/previews/)
+#   args[1] = authorization policy name
+#   args[2] = upstream host:port (e.g. foundry-beastworld:30000)
+(gated_proxy_site) {
+    import security_headers
+    import error_pages
+    import preview_bot {args[0]}
+
+    handle {
+        authorize with {args[1]}
+        reverse_proxy {args[2]}
+    }
+
+    encode zstd gzip
 }
 
 # Themed error pages for 401/403/404. Note: caddy-security returns 401
@@ -397,18 +443,7 @@ auth.bluefox.cafe {
 # Replaces the authcrunch portal home page.
 # ─────────────────────────────────────────────────────────────────────
 dnd.bluefox.cafe {
-    import security_headers
-    import static_csp
-    import error_pages
-    import preview_bot dnd
-
-    handle {
-        authorize with dnd_policy
-        root * /srv/dnd
-        file_server
-    }
-
-    encode zstd gzip
+    import gated_static_site dnd dnd_policy
 }
 
 # ─────────────────────────────────────────────────────────────────────
@@ -423,29 +458,11 @@ dnd.bluefox.cafe {
 # }
 
 beastworld.bluefox.cafe {
-    import security_headers
-    import error_pages
-    import preview_bot beastworld
-
-    handle {
-        authorize with demiplane_policy
-        reverse_proxy foundry-beastworld:30000
-    }
-
-    encode zstd gzip
+    import gated_proxy_site beastworld demiplane_policy foundry-beastworld:30000
 }
 
 starwars.bluefox.cafe {
-    import security_headers
-    import error_pages
-    import preview_bot starwars
-
-    handle {
-        authorize with demiplane_policy
-        reverse_proxy foundry-starwars:30000
-    }
-
-    encode zstd gzip
+    import gated_proxy_site starwars demiplane_policy foundry-starwars:30000
 }
 
 # Add a new game by copying a block above and pointing it at the matching
@@ -473,14 +490,5 @@ logs.bluefox.cafe {
 # (which game's modules they can see) is set inside filebrowser.
 # ─────────────────────────────────────────────────────────────────────
 files.bluefox.cafe {
-    import security_headers
-    import error_pages
-    import preview_bot files
-
-    handle {
-        authorize with dnd_policy
-        reverse_proxy filebrowser:80
-    }
-
-    encode zstd gzip
+    import gated_proxy_site files dnd_policy filebrowser:80
 }
