@@ -1,0 +1,63 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Server Error · bluefox.cafe</title>
+    <script src="https://cdn.tailwindcss.com"></script>
+    <script src="https://bluefox.cafe/shared/theme.js"></script>
+    <link rel="stylesheet" href="https://bluefox.cafe/shared/theme.css">
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.5.2/css/all.min.css">
+</head>
+<body class="font-sans">
+    <div class="flex items-center justify-center min-h-screen p-6">
+        <main class="w-full max-w-md">
+
+            <!-- Hero card -->
+            <div class="hero-card relative overflow-hidden rounded-3xl mb-8 p-8 ring-1 ring-white/10 shadow-float text-center">
+                <div class="orb-belly absolute -top-16 -right-16 w-56 h-56 rounded-full opacity-55 blur-3xl"></div>
+                <div class="orb-eyes absolute -bottom-16 -left-16 w-56 h-56 rounded-full opacity-50 blur-3xl"></div>
+
+                <div class="relative">
+                    <div class="flex justify-center mb-5">
+                        <div class="relative inline-block translate-y-2">
+                            <span class="text-6xl text-eyes glow-eyes"><i class="fa-solid fa-paw"></i></span>
+                            <span class="absolute -bottom-1 -right-3 text-2xl text-belly glow-belly"><i class="fa-solid fa-wrench"></i></span>
+                        </div>
+                    </div>
+                    <p class="text-8xl font-black tracking-tight mb-2 text-white/75">
+                        5xx
+                    </p>
+                    <p class="text-xs uppercase tracking-[0.2em] text-white/40 mb-1">Server Error</p>
+                    <h1 class="text-2xl font-bold tracking-tight mb-1">Something went wrong</h1>
+                    <p class="text-white/60 text-sm leading-relaxed">
+                        A service is down or misbehaving.<br>
+                        The fox is on it - try again in a moment.
+                    </p>
+                </div>
+            </div>
+
+            <nav class="flex flex-col gap-3">
+                <a href="javascript:location.reload()"
+                   class="group relative block px-5 py-3.5 rounded-xl font-medium
+                          shadow-float transition-all duration-200
+                          hover:-translate-y-0.5 hover:shadow-lift
+                          bg-belly text-white hover:brightness-110">
+                    <span class="inline-flex items-center gap-2">
+                        <i class="fa-solid fa-rotate-right text-sm"></i>
+                        Try again
+                    </span>
+                </a>
+                <a href="https://bluefox.cafe"
+                   class="group relative block px-5 py-3.5 rounded-xl font-medium
+                          shadow-float transition-all duration-200
+                          hover:-translate-y-0.5 hover:shadow-lift
+                          bg-sides text-white ring-1 ring-white/5 hover:ring-eyes/50">
+                    Go home
+                </a>
+            </nav>
+
+        </main>
+    </div>
+</body>
+</html>

@@ -294,6 +294,11 @@
         rewrite * /404.html
         file_server
     }
+    handle_errors 500 502 503 504 {
+        root * /srv/errors
+        rewrite * /5xx.html
+        file_server
+    }
 }
 
 # ─────────────────────────────────────────────────────────────────────
@@ -330,6 +335,18 @@ bluefox.cafe {
     handle /preview/404 {
         authorize with admin_policy
         error 404
+    }
+    handle /preview/500 {
+        authorize with admin_policy
+        error 500
+    }
+    handle /preview/502 {
+        authorize with admin_policy
+        error 502
+    }
+    handle /preview/503 {
+        authorize with admin_policy
+        error 503
     }
 
     handle {
