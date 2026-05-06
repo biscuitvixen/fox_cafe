@@ -52,7 +52,7 @@ guild → role → policy chain.
    - Add a transform pair (game role + `authp/member`) keyed off the new
      `DISCORD_GUILD_GAMENAME`.
    - Add an `authorization policy gamename_policy` (mirror of
-     `beastworld_policy`).
+     `demiplane_policy`).
    - Add a `(gated_gamename)` snippet and a `gamename.bluefox.cafe { ... }`
      site block importing it.
 4. **DnD page**: add a card for the new game in `caddy/dnd/index.html`.
@@ -78,10 +78,32 @@ Quick reference:
   Container json-file logs are capped at 3×10MB per service via the
   `x-logging` anchor in compose - adjust there if you need more retention.
 - Health: kuma.bluefox.cafe
-- Container updates: Watchtower runs daily 05:00 UTC, posts to Discord webhook.
-  Caddy is excluded from auto-updates (see comment in compose) - bump its
-  pinned tag manually after reading the authcrunch release notes.
+- Container updates: all images are pinned. Bump tags manually after reading
+  release notes (especially Caddy/authcrunch and Foundry).
 - Manual update: `docker compose pull && docker compose up -d`
+
+### Rotating the JWT signing key
+
+`JWT_SHARED_KEY` signs the session cookies issued by the auth portal. Rotate
+it if you suspect leakage, after a contributor with `.env` access leaves, or
+periodically as hygiene.
+
+caddy-security only loads one key at a time - there is no graceful overlap.
+Rotation invalidates every existing session; all users redirect to Discord
+once and re-auth. No data is lost.
+
+```bash
+# 1. Generate a new key
+openssl rand -hex 32
+
+# 2. Replace JWT_SHARED_KEY in .env
+# 3. Restart caddy to pick it up
+docker compose up -d caddy
+```
+
+Foundry game sessions (the in-app websocket) survive the cookie invalidation
+as long as the browser tab stays open; only the next navigation hits the auth
+gate.
 
 ### Uptime Kuma monitors
 
@@ -102,8 +124,8 @@ Use these targets instead (they resolve over the `web` bridge network):
 - https://bluefox.cafe - public homepage (no auth)
 - https://auth.bluefox.cafe - Discord login (OAuth callback)
 - https://dnd.bluefox.cafe - gated landing page (any guild member)
-- https://beastworld.bluefox.cafe - Beastworld campaign (Beastworld guild + admin)
-- https://starwars.bluefox.cafe - Star Wars campaign (Starwars guild + admin)
+- https://beastworld.bluefox.cafe - Beastworld campaign (Demiplane guild + admin)
+- https://starwars.bluefox.cafe - Star Wars campaign (Demiplane guild + admin)
 - https://test.bluefox.cafe - sandbox Foundry (admin only)
 - https://kuma.bluefox.cafe - uptime monitoring (admin only)
 - https://logs.bluefox.cafe - container logs (admin only)
@@ -116,15 +138,18 @@ user has - the cookie is the same, the authorization differs per site.
 
 Roles assigned by the Caddyfile transforms:
 
-- `authp/guild_beastworld` - set if the user is in the Beastworld Discord guild
-- `authp/guild_starwars`   - set if the user is in the Starwars Discord guild
-- `authp/member`           - set if the user is in any of the above guilds
-- `authp/admin`            - set if the user's Discord ID matches `DISCORD_ADMIN_USER_ID`
-- `authp/user`              - set on every Discord login (compatibility for authcrunch internals; not used for service authorization)
+- `authp/guild_demiplane` - set if the user is in the Demiplane Discord guild
+  (currently gates both Beastworld and Star Wars)
+- `authp/member`          - set if the user is in any gating guild
+- `authp/admin`           - set if the user's Discord ID matches `DISCORD_ADMIN_USER_ID`
+- `authp/user`            - set on every Discord login (compatibility for authcrunch internals; not used for service authorization)
+
+Scaffolding for a second guild (`DISCORD_GUILD_EXAMPLE_2` → `authp/guild_example_2`)
+is present in the Caddyfile but commented out - activate the transform,
+`user_group_filters` entry, and policy together when adding a second guild.
 
 Policies (one per access tier):
 
-- `dnd_policy`        - `authp/member` or `authp/admin`
-- `beastworld_policy` - `authp/guild_beastworld` or `authp/admin`
-- `starwars_policy`   - `authp/guild_starwars` or `authp/admin`
-- `admin_policy`      - `authp/admin` only
+- `dnd_policy`       - `authp/member` or `authp/admin`
+- `demiplane_policy` - `authp/guild_demiplane` or `authp/admin` (gates beastworld + starwars)
+- `admin_policy`     - `authp/admin` only
