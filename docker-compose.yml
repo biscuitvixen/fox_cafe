@@ -93,6 +93,7 @@ services:
       - ./caddy/dnd:/srv/dnd:ro               # gated dnd landing page
       - ./caddy/shared:/srv/shared:ro         # shared theme assets, served at bluefox.cafe/shared/*
       - ./caddy/errors:/srv/errors:ro         # custom 403/404 error pages
+      - ./caddy/previews:/srv/previews:ro     # public link-preview pages served to crawler bots
       - ./data/caddy/data:/data        # ACME certs + state. BACK THIS UP.
       - ./data/caddy/config:/config
     environment:

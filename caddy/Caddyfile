@@ -280,6 +280,30 @@
     authorize with admin_policy
 }
 
+# Link-preview bypass for gated sites. When a known crawler bot (the
+# things that build link-preview cards in Discord, Telegram, Slack, etc.)
+# fetches a gated URL, serve a small public HTML page with OG/Twitter
+# meta tags instead of bouncing it to the OAuth wall. Without this,
+# every shared link in chat shows the auth page as its preview.
+#
+# Used as: `import preview_bot <name>` where caddy/previews/<name>/
+# contains the index.html. Must be imported BEFORE the catchall
+# `handle { authorize ... }` so its `handle @preview_bot` matches first.
+#
+# IMPORTANT: User-Agent is trivially spoofable, so the preview directory
+# must contain ONLY content safe to expose publicly (title, blurb,
+# cover image). Never put real game data, file listings, or anything
+# member-only in there.
+(preview_bot) {
+    @preview_bot header_regexp User-Agent (?i)(Telegrambot|Discordbot|Twitterbot|Slackbot|facebookexternalhit|LinkedInBot|WhatsApp|SkypeUriPreview|Embedly|redditbot|Applebot|Mastodon|Pleroma|Iframely|Bluesky|vkShare|Synapse)
+    handle @preview_bot {
+        root * /srv/previews/{args[0]}
+        rewrite * /index.html
+        file_server
+        header Cache-Control "public, max-age=300"
+    }
+}
+
 # Themed error pages for 401/403/404. Note: caddy-security returns 401
 # (not 403) when an authenticated user lacks the required role - a quirk
 # of the upstream module - so we map both to 403.html.
@@ -373,11 +397,17 @@ auth.bluefox.cafe {
 # Replaces the authcrunch portal home page.
 # ─────────────────────────────────────────────────────────────────────
 dnd.bluefox.cafe {
-    import gated_dnd
+    import security_headers
     import static_csp
     import error_pages
-    root * /srv/dnd
-    file_server
+    import preview_bot dnd
+
+    handle {
+        authorize with dnd_policy
+        root * /srv/dnd
+        file_server
+    }
+
     encode zstd gzip
 }
 
@@ -393,16 +423,28 @@ dnd.bluefox.cafe {
 # }
 
 beastworld.bluefox.cafe {
-    import gated_demiplane
+    import security_headers
     import error_pages
-    reverse_proxy foundry-beastworld:30000
+    import preview_bot beastworld
+
+    handle {
+        authorize with demiplane_policy
+        reverse_proxy foundry-beastworld:30000
+    }
+
     encode zstd gzip
 }
 
 starwars.bluefox.cafe {
-    import gated_demiplane
+    import security_headers
     import error_pages
-    reverse_proxy foundry-starwars:30000
+    import preview_bot starwars
+
+    handle {
+        authorize with demiplane_policy
+        reverse_proxy foundry-starwars:30000
+    }
+
     encode zstd gzip
 }
 
@@ -431,8 +473,14 @@ logs.bluefox.cafe {
 # (which game's modules they can see) is set inside filebrowser.
 # ─────────────────────────────────────────────────────────────────────
 files.bluefox.cafe {
-    import gated_dnd
+    import security_headers
     import error_pages
-    reverse_proxy filebrowser:80
+    import preview_bot files
+
+    handle {
+        authorize with dnd_policy
+        reverse_proxy filebrowser:80
+    }
+
     encode zstd gzip
 }
