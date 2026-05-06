@@ -1,0 +1,58 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>403 · bluefox.cafe</title>
+    <script src="https://cdn.tailwindcss.com"></script>
+    <script src="https://bluefox.cafe/shared/theme.js"></script>
+    <link rel="stylesheet" href="https://bluefox.cafe/shared/theme.css">
+</head>
+<body class="font-sans">
+    <div class="flex items-center justify-center min-h-screen p-6">
+        <main class="w-full max-w-sm text-center">
+
+            <!-- Fox avatar with lock -->
+            <div class="relative w-24 h-24 mx-auto mb-6">
+                <div class="w-24 h-24 rounded-full flex items-center justify-center text-4xl shadow-[0_10px_30px_-8px_rgba(0,0,0,0.55),0_2px_6px_rgba(0,0,0,0.3)] ring-1 ring-white/10"
+                     style="background: linear-gradient(135deg, #302f39 0%, #1e1d28 100%);">
+                    🦊
+                </div>
+                <div class="absolute -bottom-1 -right-1 w-8 h-8 rounded-full flex items-center justify-center text-sm ring-2 ring-lining"
+                     style="background-color: #1e1d28;">
+                    🔒
+                </div>
+            </div>
+
+            <!-- Error code -->
+            <p class="text-8xl font-bold tracking-tight mb-1"
+               style="background: linear-gradient(135deg, #497bd6, #24d962);
+                      -webkit-background-clip: text; -webkit-text-fill-color: transparent;
+                      background-clip: text;">
+                403
+            </p>
+
+            <h1 class="text-xl font-semibold mb-2">Access denied</h1>
+            <p class="text-white/50 text-sm mb-8 leading-relaxed">
+                Your Discord roles don't include access to this service.<br>
+                If you think this is a mistake, check with the server admin.
+            </p>
+
+            <!-- Actions -->
+            <div class="flex flex-col gap-3">
+                <a href="https://dnd.bluefox.cafe"
+                   class="block px-5 py-3.5 rounded-xl font-medium text-white shadow-[0_10px_30px_-8px_rgba(0,0,0,0.55),0_2px_6px_rgba(0,0,0,0.3)] transition-all duration-200 hover:-translate-y-0.5 hover:brightness-110"
+                   style="background-color: #497bd6;">
+                    ← Back to DnD hub
+                </a>
+                <a href="https://auth.bluefox.cafe/auth/"
+                   class="block px-5 py-3.5 rounded-xl font-medium text-white ring-1 ring-white/10 transition-all duration-200 hover:-translate-y-0.5"
+                   style="background-color: #302f39;">
+                    Sign in with a different account
+                </a>
+            </div>
+
+        </main>
+    </div>
+</body>
+</html>

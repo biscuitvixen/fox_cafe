@@ -276,12 +276,23 @@
     authorize with admin_policy
 }
 
+# Serves custom error pages for 403 and 404 from /srv/errors/.
+# Import this on every site block so errors are consistently themed.
+(error_pages) {
+    handle_errors 403 404 {
+        root * /srv/errors
+        rewrite * /{err.status_code}.html
+        file_server
+    }
+}
+
 # ─────────────────────────────────────────────────────────────────────
 # Apex - public homepage
 # ─────────────────────────────────────────────────────────────────────
 bluefox.cafe {
     import security_headers
     import static_csp
+    import error_pages
 
     # Shared theme assets (CSS/JS) used by every *.bluefox.cafe page.
     # Served publicly so gated subdomains can <link>/<script> them without
@@ -305,6 +316,7 @@ bluefox.cafe {
 # ─────────────────────────────────────────────────────────────────────
 auth.bluefox.cafe {
     import security_headers
+    import error_pages
     route /auth* {
         authenticate with foundryauth
     }
@@ -317,6 +329,7 @@ auth.bluefox.cafe {
 dnd.bluefox.cafe {
     import gated_dnd
     import static_csp
+    import error_pages
     root * /srv/dnd
     file_server
     encode zstd gzip
@@ -335,12 +348,14 @@ dnd.bluefox.cafe {
 
 beastworld.bluefox.cafe {
     import gated_demiplane
+    import error_pages
     reverse_proxy foundry-beastworld:30000
     encode zstd gzip
 }
 
 starwars.bluefox.cafe {
     import gated_demiplane
+    import error_pages
     reverse_proxy foundry-starwars:30000
     encode zstd gzip
 }
@@ -354,11 +369,13 @@ starwars.bluefox.cafe {
 # ─────────────────────────────────────────────────────────────────────
 kuma.bluefox.cafe {
     import gated_admin
+    import error_pages
     reverse_proxy uptime-kuma:3001
 }
 
 logs.bluefox.cafe {
     import gated_admin
+    import error_pages
     reverse_proxy dozzle:8080
 }
 
@@ -369,6 +386,7 @@ logs.bluefox.cafe {
 # ─────────────────────────────────────────────────────────────────────
 files.bluefox.cafe {
     import gated_dnd
+    import error_pages
     reverse_proxy filebrowser:80
     encode zstd gzip
 }
