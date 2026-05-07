@@ -35,8 +35,8 @@ x-hardening: &hardening
 # this with `<<: *foundry-base` and override the bits that differ
 # (container_name, hostname, license env vars, data volume).
 #
-# Image tag note: felddy uses `:14` as the rolling major-14 tag - Watchtower
-# will update within v14 (e.g. 14.360 → 14.361 → 14.x) but won't jump to
+# Image tag note: felddy uses `:14` as the rolling major-14 tag, which tracks
+# the latest v14 patch (e.g. 14.360 → 14.361 → 14.x) but won't jump to
 # v15. Pin to `:14.360` if you want to freeze the minor too. Foundry runs
 # as UID 1000 inside the container, which matches the default first-user
 # UID on the VPS - bind-mounted data ends up owned by the host user.
@@ -310,7 +310,7 @@ services:
     networks: [web, socket_proxy]
 
   # ─────────────────────────────────────────────────────────────────────
-  # Updates are handled manually for stability - no Watchtower.
+  # Updates are handled manually for stability.
   # Workflow: `docker compose pull <svc> && docker compose up -d <svc>`.
   # Subscribe to upstream release feeds (Foundry, authcrunch, filebrowser,
   # dozzle, kuma) so you know when patches land.
