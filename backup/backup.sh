@@ -39,7 +39,7 @@ CONTAINERS=(
 
 docker compose -f "$COMPOSE_DIR/docker-compose.yml" pause "${CONTAINERS[@]}"
 
-# Always unpause on exit, whether backup succeeded, failed, or was killed
+# Safety net: unpause on exit if we die during the backup itself
 trap 'docker compose -f "$COMPOSE_DIR/docker-compose.yml" unpause "${CONTAINERS[@]}"' EXIT
 
 restic backup \
@@ -52,6 +52,12 @@ restic backup \
   --exclude "*/container_cache" \
   --exclude "*/Logs" \
   --tag fox-cafe
+
+# Source data is captured - bring containers back up before the slower
+# repo-maintenance steps (forget/prune/copy) which only touch restic repos.
+docker compose -f "$COMPOSE_DIR/docker-compose.yml" unpause "${CONTAINERS[@]}"
+# Clear the trap since we've already unpaused
+trap - EXIT
 
 restic forget \
   --keep-daily 7 \
