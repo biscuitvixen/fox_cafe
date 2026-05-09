@@ -1,7 +1,7 @@
 #!/bin/bash
 # Nightly restic backup for fox_cafe
 #
-# Stops Foundry containers briefly for a clean snapshot, then restarts them
+# Pauses Foundry containers briefly for a clean snapshot, then unpauses them
 # via a trap so they always come back up even if restic fails.
 #
 # Two-stage backup:
@@ -27,12 +27,20 @@ COMPOSE_DIR="$(cd "$(dirname "$0")/.." && pwd)"
 RESTIC_REPOSITORY=/var/backups/fox-cafe
 export RESTIC_REPOSITORY
 
-# Stop Foundry + filebrowser containers - Caddy and monitoring stay up.
+# Containers to pause during backup - Caddy and monitoring stay up.
 # Filebrowser is included so its sqlite db is snapshotted with no writer attached.
-docker compose -f "$COMPOSE_DIR/docker-compose.yml" stop foundry-beastworld foundry-starwars filebrowser
+# pause/unpause (SIGSTOP/SIGCONT) is used instead of stop/start so Docker
+# doesn't treat the exit as a crash and auto-restart containers mid-backup.
+CONTAINERS=(
+  foundry-beastworld
+  foundry-starwars
+  filebrowser
+)
 
-# Always restart on exit, whether backup succeeded, failed, or was killed
-trap 'docker compose -f "$COMPOSE_DIR/docker-compose.yml" start foundry-beastworld foundry-starwars filebrowser' EXIT
+docker compose -f "$COMPOSE_DIR/docker-compose.yml" pause "${CONTAINERS[@]}"
+
+# Always unpause on exit, whether backup succeeded, failed, or was killed
+trap 'docker compose -f "$COMPOSE_DIR/docker-compose.yml" unpause "${CONTAINERS[@]}"' EXIT
 
 restic backup \
   "$COMPOSE_DIR/data/foundry-beastworld/Data" \
