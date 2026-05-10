@@ -1,13 +1,12 @@
 #!/bin/bash
 # Manual restic operations for fox_cafe.
 #
-# Wraps the same env, repos, and container set as backup.sh so ad-hoc work
-# (snapshots, checks, on-demand backups, restore-prep) doesn't drift from the
-# nightly job. Always runs interactively - no systemd, no traps you can't see.
+# Wraps the same env, repos, and container set as backup.sh (via lib.sh) so
+# ad-hoc work doesn't drift from the nightly job.
 #
 # Usage:
-#   sudo backup/manual.sh <command> [--dry-run] [--remote]
-#   sudo backup/manual.sh menu              # interactive picker
+#   sudo backup/backup-cli.sh <command> [--dry-run] [--remote]
+#   sudo backup/backup-cli.sh menu              # interactive picker
 #
 # Commands:
 #   backup              Pause containers, run restic backup, unpause
@@ -29,38 +28,15 @@
 
 set -euo pipefail
 
-ENV_FILE="/etc/restic/fox-cafe.env"
-COMPOSE_DIR="$(cd "$(dirname "$0")/.." && pwd)"
-
-if [[ ! -r "$ENV_FILE" ]]; then
-    echo "ERROR: cannot read $ENV_FILE (run with sudo?)" >&2
-    exit 1
-fi
-# shellcheck disable=SC1090
-. "$ENV_FILE"
-export RESTIC_PASSWORD LOCAL_REPOSITORY REMOTE_MOUNT REMOTE_REPOSITORY
-export RESTIC_REPOSITORY="$LOCAL_REPOSITORY"
-
-CONTAINERS=(
-  foundry-beastworld
-  foundry-starwars
-  filebrowser
-)
-
-BACKUP_PATHS=(
-  "$COMPOSE_DIR/data/foundry-beastworld/Data"
-  "$COMPOSE_DIR/data/foundry-beastworld/Config"
-  "$COMPOSE_DIR/data/foundry-starwars/Data"
-  "$COMPOSE_DIR/data/foundry-starwars/Config"
-  "$COMPOSE_DIR/data/filebrowser"
-  "$COMPOSE_DIR/data/caddy/data"
-)
-
-RESTIC_NICE=(nice -n10 ionice -c2 -n7)
+# shellcheck source=lib.sh
+. "$(dirname "$0")/lib.sh"
+fc_load_env
 
 DRY_RUN=0
 REMOTE=0
 CMD=""
+
+usage() { sed -n '2,28p' "$0" | sed 's/^# \{0,1\}//'; }
 
 parse_args() {
     while [[ $# -gt 0 ]]; do
@@ -81,75 +57,35 @@ parse_args() {
     done
 }
 
-usage() {
-    sed -n '2,30p' "$0" | sed 's/^# \{0,1\}//'
-}
-
 target_repo() {
-    if [[ "$REMOTE" -eq 1 ]]; then
-        echo "$REMOTE_REPOSITORY"
-    else
-        echo "$LOCAL_REPOSITORY"
-    fi
+    [[ "$REMOTE" -eq 1 ]] && echo "$REMOTE_REPOSITORY" || echo "$LOCAL_REPOSITORY"
 }
 
-dry_flag() {
+dry_args() {
     [[ "$DRY_RUN" -eq 1 ]] && echo "--dry-run" || true
 }
 
-pause_containers() {
-    docker compose -f "$COMPOSE_DIR/docker-compose.yml" pause "${CONTAINERS[@]}"
-    trap 'docker compose -f "$COMPOSE_DIR/docker-compose.yml" unpause "${CONTAINERS[@]}"' EXIT
-}
-
-unpause_containers() {
-    docker compose -f "$COMPOSE_DIR/docker-compose.yml" unpause "${CONTAINERS[@]}"
-    trap - EXIT
-}
-
 cmd_backup() {
-    local dry; dry="$(dry_flag)"
     if [[ "$DRY_RUN" -eq 1 ]]; then
         echo "[dry-run] skipping container pause/unpause"
+        fc_backup --dry-run --tag manual
     else
-        pause_containers
-    fi
-
-    "${RESTIC_NICE[@]}" restic backup \
-        ${dry:+$dry} \
-        "${BACKUP_PATHS[@]}" \
-        --exclude "*/container_cache" \
-        --exclude "*/Logs" \
-        --tag fox-cafe \
-        --tag manual
-
-    if [[ "$DRY_RUN" -ne 1 ]]; then
-        unpause_containers
+        fc_pause
+        fc_backup --tag manual
+        fc_unpause
     fi
 }
 
-cmd_forget() {
-    local dry; dry="$(dry_flag)"
-    "${RESTIC_NICE[@]}" restic forget \
-        ${dry:+$dry} \
-        --keep-daily 7 \
-        --keep-weekly 4 \
-        --keep-monthly 3 \
-        --keep-yearly 1 \
-        --prune \
-        --tag fox-cafe
-}
+cmd_forget() { fc_forget $(dry_args); }
 
 cmd_copy() {
-    local dry; dry="$(dry_flag)"
-    if ! mountpoint -q "$REMOTE_MOUNT"; then
+    local rc=0
+    fc_copy $(dry_args) || rc=$?
+    if [[ "$rc" -eq 2 ]]; then
         echo "ERROR: $REMOTE_MOUNT not mounted" >&2
         return 1
     fi
-    RESTIC_FROM_PASSWORD="$RESTIC_PASSWORD" \
-        "${RESTIC_NICE[@]}" restic -r "$REMOTE_REPOSITORY" copy \
-            ${dry:+$dry} \
-            --from-repo "$LOCAL_REPOSITORY"
+    return "$rc"
 }
 
 cmd_snapshots() { restic -r "$(target_repo)" snapshots; }
@@ -194,20 +130,20 @@ cmd_menu() {
     )
     select opt in "${options[@]}"; do
         case "$opt" in
-            "backup")             CMD=backup;    cmd_backup;    break ;;
-            "forget+prune")       CMD=forget;    cmd_forget;    break ;;
-            "copy to NAS")        CMD=copy;      cmd_copy;      break ;;
-            "snapshots (local)")  REMOTE=0; cmd_snapshots;      break ;;
-            "snapshots (remote)") REMOTE=1; cmd_snapshots;      break ;;
-            "check (local)")      REMOTE=0; cmd_check;          break ;;
-            "check (remote)")     REMOTE=1; cmd_check;          break ;;
-            "stats (local)")      REMOTE=0; cmd_stats;          break ;;
-            "stats (remote)")     REMOTE=1; cmd_stats;          break ;;
-            "unlock (local)")     REMOTE=0; cmd_unlock;         break ;;
-            "unlock (remote)")    REMOTE=1; cmd_unlock;         break ;;
-            "pause containers")   pause_containers; trap - EXIT; break ;;
-            "unpause containers") docker compose -f "$COMPOSE_DIR/docker-compose.yml" unpause "${CONTAINERS[@]}"; break ;;
-            "full dry-run")       cmd_dry_run;   break ;;
+            "backup")             cmd_backup;    break ;;
+            "forget+prune")       cmd_forget;    break ;;
+            "copy to remote")        cmd_copy;      break ;;
+            "snapshots (local)")  REMOTE=0; cmd_snapshots; break ;;
+            "snapshots (remote)") REMOTE=1; cmd_snapshots; break ;;
+            "check (local)")      REMOTE=0; cmd_check;     break ;;
+            "check (remote)")     REMOTE=1; cmd_check;     break ;;
+            "stats (local)")      REMOTE=0; cmd_stats;     break ;;
+            "stats (remote)")     REMOTE=1; cmd_stats;     break ;;
+            "unlock (local)")     REMOTE=0; cmd_unlock;    break ;;
+            "unlock (remote)")    REMOTE=1; cmd_unlock;    break ;;
+            "pause containers")   fc_pause; trap - EXIT;   break ;;
+            "unpause containers") fc_unpause;              break ;;
+            "full dry-run")       cmd_dry_run; break ;;
             "quit")               break ;;
             *) echo "invalid selection" ;;
         esac
@@ -224,8 +160,8 @@ case "${CMD:-menu}" in
     check)     cmd_check ;;
     stats)     cmd_stats ;;
     unlock)    cmd_unlock ;;
-    pause)     pause_containers; trap - EXIT ;;
-    unpause)   docker compose -f "$COMPOSE_DIR/docker-compose.yml" unpause "${CONTAINERS[@]}" ;;
+    pause)     fc_pause; trap - EXIT ;;
+    unpause)   fc_unpause ;;
     dry-run)   cmd_dry_run ;;
     menu)      cmd_menu ;;
     *) echo "ERROR: unknown command: $CMD" >&2; usage; exit 2 ;;
