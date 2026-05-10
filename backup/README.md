@@ -23,6 +23,8 @@ All paths are configured via the env file in step 3 below, loaded by the script 
 | `data/foundry-starwars/Data` | Same | Same |
 | `data/foundry-starwars/Config` | Same | Same |
 | `data/caddy/data` | ACME certs + state | Let's Encrypt rate-limits re-issuance to 5/week per domain - losing this is painful |
+| `data/filebrowser` | Filebrowser DB + settings | User accounts, scopes, share links |
+| `.env` | Discord OAuth creds, JWT key, Foundry licenses | Required to start the stack. Same security boundary as the restic password file (both plaintext on host) so no extra exposure. |
 
 Not backed up: `data/uptime-kuma` (monitor config, easily recreated),
 `container_cache/`, `Logs/`.
