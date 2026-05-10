@@ -225,6 +225,7 @@
 # scripts, dynamic imports, and module-specific resources we don't
 # enumerate, so a strict CSP would break gameplay. The global
 # `frame-ancestors 'none'` from (security_headers) still applies there.
+
 (static_csp) {
     header Content-Security-Policy "default-src 'self'; \
         script-src 'self' 'unsafe-inline' https://cdn.tailwindcss.com https://unpkg.com; \
@@ -257,6 +258,22 @@
         X-Frame-Options "DENY"
         # Don't advertise that we're Caddy.
         -Server
+    }
+}
+
+# JSON access log written to a shared volume that crowdsec mounts read-only
+# and parses for HTTP-layer scenarios (scanning, bruteforce, CVE probes).
+# Imported by every site - without the import a site's requests are invisible
+# to crowdsec. Roll at 100MB / keep 5 to bound disk use; crowdsec tails by
+# inode so rotations don't lose events.
+(access_log) {
+    log {
+        output file /var/log/caddy/access.log {
+            roll_size 100mb
+            roll_keep 5
+        }
+        format json
+        level INFO
     }
 }
 
@@ -375,6 +392,7 @@
 # Apex - public homepage
 # ─────────────────────────────────────────────────────────────────────
 bluefox.cafe {
+    import access_log
     import security_headers
     import static_csp
     import error_pages
@@ -431,6 +449,7 @@ bluefox.cafe {
 # Auth portal - public, this is where the Discord redirect lands
 # ─────────────────────────────────────────────────────────────────────
 auth.bluefox.cafe {
+    import access_log
     import security_headers
     import error_pages
     route /auth* {
@@ -443,6 +462,7 @@ auth.bluefox.cafe {
 # Replaces the authcrunch portal home page.
 # ─────────────────────────────────────────────────────────────────────
 dnd.bluefox.cafe {
+    import access_log
     import gated_static_site dnd dnd_policy
 }
 
@@ -458,10 +478,12 @@ dnd.bluefox.cafe {
 # }
 
 beastworld.bluefox.cafe {
+    import access_log
     import gated_proxy_site beastworld demiplane_policy foundry-beastworld:30000
 }
 
 starwars.bluefox.cafe {
+    import access_log
     import gated_proxy_site starwars demiplane_policy foundry-starwars:30000
 }
 
@@ -473,12 +495,14 @@ starwars.bluefox.cafe {
 # Monitoring - admin-only
 # ─────────────────────────────────────────────────────────────────────
 kuma.bluefox.cafe {
+    import access_log
     import gated_admin
     import error_pages
     reverse_proxy uptime-kuma:3001
 }
 
 logs.bluefox.cafe {
+    import access_log
     import gated_admin
     import error_pages
     reverse_proxy dozzle:8080
@@ -490,5 +514,6 @@ logs.bluefox.cafe {
 # (which game's modules they can see) is set inside filebrowser.
 # ─────────────────────────────────────────────────────────────────────
 files.bluefox.cafe {
+    import access_log
     import gated_proxy_site files dnd_policy filebrowser:80
 }

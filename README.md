@@ -105,6 +105,44 @@ Foundry game sessions (the in-app websocket) survive the cookie invalidation
 as long as the browser tab stays open; only the next navigation hits the auth
 gate.
 
+### CrowdSec
+
+A CrowdSec agent runs in the stack, parses Caddy's JSON access log
+(`caddy_logs` named volume), and exposes LAPI on `127.0.0.1:8080`. A host-side
+**`crowdsec-firewall-bouncer-nftables`** systemd service polls LAPI every 10s
+and maintains `table ip crowdsec` / `table ip6 crowdsec6` in nftables - drops
+happen before Docker's DNAT, so banned IPs never reach Caddy.
+
+The instance is enrolled in the CrowdSec console (https://app.crowdsec.net)
+for the community blocklist push and a remote dashboard. State lives at
+`./data/crowdsec/{data,config}` and is picked up by the nightly backup.
+
+```bash
+# What's currently banned, and why
+docker compose exec crowdsec cscli decisions list
+
+# Recent scenarios that fired
+docker compose exec crowdsec cscli alerts list
+
+# Unban an IP (e.g. yourself after a false positive)
+docker compose exec crowdsec cscli decisions delete --ip <ip>
+
+# Confirm the host bouncer is connected and pulling
+docker compose exec crowdsec cscli bouncers list
+sudo systemctl status crowdsec-firewall-bouncer
+
+# Console + CAPI status (enrolment, signal sharing, blocklist subscriptions)
+docker compose exec crowdsec cscli console status
+docker compose exec crowdsec cscli capi status
+
+# Inspect the kernel-level blocklist
+sudo nft list table ip crowdsec
+```
+
+If the bouncer dies, existing nftables rules stay in place (no protection
+lost) but no new decisions get enforced until it restarts:
+`sudo systemctl restart crowdsec-firewall-bouncer`.
+
 ### Uptime Kuma monitors
 
 When configuring monitors in Kuma, **probe the internal docker hostnames, not

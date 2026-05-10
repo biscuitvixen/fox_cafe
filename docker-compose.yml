@@ -117,6 +117,10 @@ services:
       - ./caddy/previews:/srv/previews:ro     # public link-preview pages served to crawler bots
       - ./data/caddy/data:/data        # ACME certs + state. BACK THIS UP.
       - ./data/caddy/config:/config
+      # JSON access logs, tailed read-only by crowdsec for HTTP scenarios.
+      # Named volume (not bind mount) so the path exists with correct
+      # ownership before Caddy starts writing.
+      - caddy_logs:/var/log/caddy
     environment:
       ACME_EMAIL:               ${ACME_EMAIL}
       JWT_SHARED_KEY:           ${JWT_SHARED_KEY}
@@ -337,20 +341,96 @@ services:
   # ─────────────────────────────────────────────────────────────────────
 
   # ─────────────────────────────────────────────────────────────────────
-  # CrowdSec - commented out, future addition
+  # CrowdSec - log analysis + Local API
   # ─────────────────────────────────────────────────────────────────────
-  # crowdsec:
-  #   image: crowdsecurity/crowdsec:latest
-  #   container_name: crowdsec
-  #   restart: unless-stopped
-  #   environment:
-  #     COLLECTIONS: "crowdsecurity/caddy crowdsecurity/http-cve crowdsecurity/linux"
-  #     GID: "1000"
-  #   volumes:
-  #     - crowdsec_data:/var/lib/crowdsec/data
-  #     - crowdsec_config:/etc/crowdsec
-  #     # Will need to share Caddy's log volume read-only for parsing
-  #   networks: [web]
+  # Reads Caddy's JSON access log, runs HTTP scenarios (scanning, bruteforce,
+  # CVE probes), and serves decisions over LAPI to a host-side firewall
+  # bouncer that drops banned IPs in nftables before they reach Docker.
+  #
+  # LAPI is bound to 127.0.0.1 only - the host bouncer reaches it via the
+  # loopback-published port, nothing on the public internet ever touches it.
+  #
+  # First-run setup (one-time):
+  #   docker compose up -d crowdsec
+  #   docker compose exec crowdsec cscli capi register     # community blocklist
+  #   docker compose exec crowdsec cscli bouncers add firewall-bouncer
+  #     # ^ copy the printed API key into /etc/crowdsec/bouncers/crowdsec-firewall-bouncer.yaml on the host
+  crowdsec:
+    <<: *hardening
+    image: crowdsecurity/crowdsec:v1.7.7
+    container_name: crowdsec
+    restart: unless-stopped
+    logging: *default-logging
+    mem_limit: 512m
+    mem_reservation: 64m
+    oom_score_adj: 500
+    # Rootfs read-only; crowdsec writes only to its data + config volumes
+    # and needs scratch space for its unix socket / lockfiles.
+    read_only: true
+    tmpfs:
+      - /tmp:size=32m,mode=1777
+      - /var/run:size=8m,mode=755
+    # The crowdsec entrypoint runs as root, symlinks GeoIP databases from
+    # the image into /var/lib/crowdsec/data, fixes ownership on the bind
+    # mounts, and drops to UID 1000 (matching the GID env below) before
+    # exec'ing the daemon. Each cap maps to one of those steps:
+    #   DAC_OVERRIDE: write into bind-mounted dirs owned by 1000:1000
+    #   CHOWN/FOWNER: chown/chmod the data + config dirs on first boot
+    #   SETUID/SETGID: drop privileges before running crowdsec itself
+    # Without these, the entrypoint crash-loops on the first `ln` call.
+    cap_add: [DAC_OVERRIDE, CHOWN, FOWNER, SETUID, SETGID]
+    environment:
+      # Hub items installed on first boot. Keep this list in sync with what
+      # `cscli collections list` shows - removing an entry here does NOT
+      # uninstall it from the data volume.
+      # caddy:    parser for Caddy JSON access logs + HTTP scanning/bruteforce scenarios
+      # http-cve: matchers for known CVE exploit URLs (Log4Shell, path traversal, WP, etc)
+      # whitelists: postoverflow that prevents banning RFC1918 / loopback / link-local
+      #             - critical, without it an internal misconfigured probe can ban itself
+      COLLECTIONS: "crowdsecurity/caddy crowdsecurity/http-cve"
+      # Don't ship usage telemetry to the hub.
+      DISABLE_ONLINE_API: "false"   # keep CAPI on for the community blocklist
+      GID: "1000"
+    volumes:
+      # Bind-mounted (not named volume) so the SQLite decisions DB and the
+      # machine identity end up under ./data/ alongside everything else the
+      # backup script snapshots. Losing this loses ban history + CAPI registration.
+      - ./data/crowdsec/data:/var/lib/crowdsec/data
+      # Bind-mounted so acquis.yaml, profiles.yaml, and any custom scenarios
+      # / whitelists you write live on the host fs and get backed up. Edit
+      # acquis.yaml here directly after first boot.
+      - ./data/crowdsec/config:/etc/crowdsec
+      # Caddy's access logs, read-only. Named volume (ephemeral - rolled at
+      # 100MB / kept 5 - nothing here is worth backing up).
+      - caddy_logs:/var/log/caddy:ro
+    # LAPI on loopback only. The host firewall-bouncer connects here.
+    # NEVER bind this to 0.0.0.0 - LAPI has no auth on its bind address,
+    # only on the bouncer/agent registration tokens. Hetzner's cloud firewall
+    # would also block it, but defence in depth: loopback bind makes LAPI
+    # unreachable from the public internet even if the cloud firewall is
+    # ever misconfigured.
+    ports:
+      - "127.0.0.1:8080:8080"
+    # Dedicated isolated network. crowdsec doesn't need to reach any other
+    # container (the host bouncer talks to it via the published loopback
+    # port, not over docker), and nothing else needs to reach crowdsec.
+    # `internal: true` means the network has no gateway to the internet -
+    # see the network definition at the bottom of this file.
+    networks: [crowdsec]
+    healthcheck:
+      test: ["CMD", "cscli", "lapi", "status"]
+      interval: 30s
+      timeout: 5s
+      retries: 3
+      start_period: 30s
+
+volumes:
+  # Shared between caddy (writer) and crowdsec (reader). Named volume so
+  # docker sets ownership on first create instead of us managing a host
+  # path - logs are ephemeral (rolled at 100MB / kept 5) so nothing here
+  # needs to land in the backup script.
+  caddy_logs:
+    name: foundry_caddy_logs
 
 networks:
   web:
@@ -365,3 +445,13 @@ networks:
     driver: bridge
     name: foundry_socket_proxy
     internal: true
+
+  # Dedicated network for crowdsec. Nothing else attaches - the host bouncer
+  # reaches LAPI via the published 127.0.0.1:8080 port, not over docker.
+  # NOT marked `internal: true` because crowdsec needs outbound HTTPS to
+  # api.crowdsec.net (CAPI - community blocklist sync) and hub.crowdsec.net
+  # (collection / scenario updates). Marking it internal would silently
+  # disable those without breaking the container.
+  crowdsec:
+    driver: bridge
+    name: foundry_crowdsec
