@@ -45,7 +45,13 @@ docker compose -f "$COMPOSE_DIR/docker-compose.yml" pause "${CONTAINERS[@]}"
 # Safety net: unpause on exit if we die during the backup itself
 trap 'docker compose -f "$COMPOSE_DIR/docker-compose.yml" unpause "${CONTAINERS[@]}"' EXIT
 
-restic backup \
+# Run restic under nice + ionice so its disk I/O doesn't starve
+# containers on the single shared sda1 volume.
+#   nice -n10        : lower CPU priority (default 0, range -20..19)
+#   ionice -c2 -n7   : best-effort I/O class, lowest priority within it
+RESTIC_NICE=(nice -n10 ionice -c2 -n7)
+
+"${RESTIC_NICE[@]}" restic backup \
   "$COMPOSE_DIR/data/foundry-beastworld/Data" \
   "$COMPOSE_DIR/data/foundry-beastworld/Config" \
   "$COMPOSE_DIR/data/foundry-starwars/Data" \
@@ -62,7 +68,7 @@ docker compose -f "$COMPOSE_DIR/docker-compose.yml" unpause "${CONTAINERS[@]}"
 # Clear the trap since we've already unpaused
 trap - EXIT
 
-restic forget \
+"${RESTIC_NICE[@]}" restic forget \
   --keep-daily 7 \
   --keep-weekly 4 \
   --keep-monthly 3 \
@@ -75,7 +81,7 @@ restic forget \
 # new pack files are sent each night. RESTIC_FROM_PASSWORD covers the source (--from-repo).
 if mountpoint -q "$REMOTE_MOUNT"; then
     RESTIC_FROM_PASSWORD="$RESTIC_PASSWORD" \
-      restic -r "$REMOTE_REPOSITORY" copy \
+      "${RESTIC_NICE[@]}" restic -r "$REMOTE_REPOSITORY" copy \
         --from-repo "$LOCAL_REPOSITORY" \
       || echo "WARNING: NAS restic copy failed - local backup still intact"
 else
