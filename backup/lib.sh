@@ -38,6 +38,7 @@ CONTAINERS=(
   foundry-beastworld
   foundry-starwars
   filebrowser
+  crowdsec
 )
 
 BACKUP_PATHS=(
@@ -47,6 +48,13 @@ BACKUP_PATHS=(
   "$COMPOSE_DIR/data/foundry-starwars/Config"
   "$COMPOSE_DIR/data/filebrowser"
   "$COMPOSE_DIR/data/caddy/data"
+  # crowdsec/data: SQLite decisions DB + machine identity (re-registering
+  # with CAPI on a rebuild is annoying without this).
+  # crowdsec/config: acquis.yaml, any custom whitelists/scenarios, hub state.
+  # The caddy_logs named volume is intentionally NOT backed up - logs are
+  # rolled at 100MB / kept 5, so anything in there is ephemeral by design.
+  "$COMPOSE_DIR/data/crowdsec/data"
+  "$COMPOSE_DIR/data/crowdsec/config"
   # .env carries Discord OAuth creds, JWT key, and Foundry licenses. Without
   # it the stack won't start. Same security boundary as the restic password
   # file at /etc/restic/fox-cafe.env (both plaintext on the same host), so
