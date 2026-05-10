@@ -38,7 +38,14 @@ fc_backup --tag nightly
 # repo-maintenance steps (forget/prune/copy) which only touch restic repos.
 fc_unpause
 
-fc_forget
+# Forget+prune is best-effort: a flaky prune shouldn't skip the offsite copy
+# below. Without this, set -e would abort the script and we'd lose a night
+# of remote sync over a transient prune failure (e.g. a stale lock).
+rc=0
+fc_forget || rc=$?
+if [[ "$rc" -ne 0 ]]; then
+    echo "WARNING: restic forget/prune failed (rc=$rc) - continuing to remote copy"
+fi
 
 # Best-effort offsite copy. mount-missing (rc=2) is a warning, not a failure.
 rc=0
