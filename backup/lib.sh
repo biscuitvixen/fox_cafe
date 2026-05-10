@@ -47,6 +47,11 @@ BACKUP_PATHS=(
   "$COMPOSE_DIR/data/foundry-starwars/Config"
   "$COMPOSE_DIR/data/filebrowser"
   "$COMPOSE_DIR/data/caddy/data"
+  # .env carries Discord OAuth creds, JWT key, and Foundry licenses. Without
+  # it the stack won't start. Same security boundary as the restic password
+  # file at /etc/restic/fox-cafe.env (both plaintext on the same host), so
+  # including it here doesn't widen exposure.
+  "$COMPOSE_DIR/.env"
 )
 
 # Run restic under nice + ionice so its disk I/O doesn't starve containers
