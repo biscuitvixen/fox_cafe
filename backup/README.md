@@ -6,7 +6,7 @@ and Dozzle stay up throughout - only the game servers are paused.
 
 Two-stage design:
 1. **restic → local repo** on the VPS (`$LOCAL_REPOSITORY`) - always runs, fast, works offline
-2. **restic copy → NFS mount** over Tailscale (`$REMOTE_REPOSITORY` under `$REMOTE_MOUNT`) - best-effort offsite copy, skipped cleanly if the NAS is unavailable. Uses `restic copy` (not rsync) so the NAS holds an independent restic repo with shared chunker params, preserving dedup across both repos.
+2. **restic copy → NFS mount** over Tailscale (`$REMOTE_REPOSITORY` under `$REMOTE_MOUNT`) - best-effort offsite copy, skipped cleanly if the remote is unavailable. Uses `restic copy` (not rsync) so the remote holds an independent restic repo with shared chunker params, preserving dedup across both repos.
 
 All paths are configured via the env file in step 3 below, loaded by the script and systemd unit.
 
@@ -58,7 +58,7 @@ sudo chmod 600 /etc/restic/fox-cafe.env
 
 Example values: `LOCAL_REPOSITORY=/var/backups/fox-cafe`, `REMOTE_MOUNT=/mnt/<remote-name>`, `REMOTE_REPOSITORY=/mnt/<remote-name>/fox-cafe`.
 
-`backup.sh` exports `RESTIC_REPOSITORY="$LOCAL_REPOSITORY"` so restic itself sees the local repo by default; the NAS repo is passed explicitly via `-r "$REMOTE_REPOSITORY"` only at copy/restore time.
+`backup.sh` exports `RESTIC_REPOSITORY="$LOCAL_REPOSITORY"` so restic itself sees the local repo by default; the remote repo is passed explicitly via `-r "$REMOTE_REPOSITORY"` only at copy/restore time.
 
 ### 4. Initialise the local repository
 
@@ -69,22 +69,22 @@ restic -r "$LOCAL_REPOSITORY" init
 
 ### 5. Configure the NFS mount
 
-Prerequisites on the NAS:
-- Tailscale running directly on the NAS (not via a subnet router) so it has its own tailnet IP. This avoids subnet-router SNAT and lets the NFS export ACL pin to the VPS's `/32`.
-- A dedicated dataset for fox-cafe backups with an NFS export configured `all_squash` to a dedicated UID/GID (so VPS root writes land as a single backup identity on the NAS, distinct from any other share).
+Prerequisites on the remote NFS server:
+- Tailscale running directly on the server (not via a subnet router) so it has its own tailnet IP. This avoids subnet-router SNAT and lets the NFS export ACL pin to the VPS's `/32`.
+- A dedicated dataset for fox-cafe backups with an NFS export configured `all_squash` to a dedicated UID/GID (so VPS root writes land as a single backup identity on the remote, distinct from any other share).
 - Authorized Networks on the export set to the VPS's tailnet IP `/32`.
 
-Install NFS client tools and add to `/etc/fstab` (substitute your NAS tailnet IP / MagicDNS name and export path):
+Install NFS client tools and add to `/etc/fstab` (substitute your remote tailnet IP / MagicDNS name and export path):
 
 ```
-<nas-tailnet-ip>:/mnt/<pool>/fox-cafe-backups  <remote-mount-point>  nfs  _netdev,nofail,soft,timeo=30,vers=4  0 0
+<remote-tailnet-ip>:/mnt/<pool>/fox-cafe-backups  <remote-mount-point>  nfs  _netdev,nofail,soft,timeo=30,vers=4  0 0
 ```
 
 (`/etc/fstab` is read before env files are sourced, so the mount point must be the literal path you set as `REMOTE_MOUNT` in the env file.)
 
 - `_netdev` - wait for network before mounting at boot
-- `nofail` - don't halt boot if the NAS is unreachable
-- `soft,timeo=30` - time out cleanly rather than hanging if the NAS disappears mid-transfer
+- `nofail` - don't halt boot if the remote is unreachable
+- `soft,timeo=30` - time out cleanly rather than hanging if the remote disappears mid-transfer
 - `vers=4` - pin to NFSv4 (single port 2049, simpler firewall story than v3)
 
 Create the mount point and test:
@@ -99,7 +99,7 @@ sudo touch "$REMOTE_MOUNT/.write-test" && sudo rm "$REMOTE_MOUNT/.write-test"
 
 The write test confirms the squash UID owns the dataset; if it fails, re-check dataset ownership matches the export's `anonuid`/`anongid`.
 
-### 5a. Initialise the NAS-side restic repo
+### 5a. Initialise the remote-side restic repo
 
 The two restic repos must share chunker params for dedup to carry across. Initialise the destination with `--copy-chunker-params` pointing at the existing local repo:
 
@@ -206,7 +206,7 @@ restic snapshots          # find the snapshot ID
 restic restore abc12345 --target / --include "/home/biscuit/fox_cafe/prod/data/foundry-beastworld"
 ```
 
-Full restore after VPS rebuild (restore from NAS copy if local repo is gone):
+Full restore after VPS rebuild (restore from remote copy if local repo is gone):
 ```bash
 . /etc/restic/fox-cafe.env
 restic -r "$REMOTE_REPOSITORY" restore latest --target /

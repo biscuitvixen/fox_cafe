@@ -12,11 +12,11 @@
 # Commands:
 #   backup              Pause containers, run restic backup, unpause
 #   forget              Apply retention policy + prune (local repo)
-#   copy                Copy local repo to NAS
-#   snapshots           List snapshots (default: local; --remote for NAS)
-#   check               Verify repo integrity (default: local; --remote for NAS)
-#   stats               Repo size / dedup stats (default: local; --remote for NAS)
-#   unlock              Remove stale repo locks (default: local; --remote for NAS)
+#   copy                Copy local repo to remote
+#   snapshots           List snapshots (default: local; --remote for remote)
+#   check               Verify repo integrity (default: local; --remote for remote)
+#   stats               Repo size / dedup stats (default: local; --remote for remote)
+#   unlock              Remove stale repo locks (default: local; --remote for remote)
 #   pause / unpause     Pause or unpause the Foundry + filebrowser containers
 #   dry-run             Full pipeline with no writes (backup+forget+copy, --dry-run)
 #   menu                Interactive selection
@@ -24,7 +24,7 @@
 # Flags:
 #   --dry-run           Pass --dry-run to restic where supported. For 'backup'
 #                       and 'dry-run' this also skips container pause/unpause.
-#   --remote            Target the NAS repo instead of the local repo (where
+#   --remote            Target the remote repo instead of the local repo (where
 #                       the command is repo-scoped: snapshots/check/stats/unlock).
 
 set -euo pipefail
@@ -165,7 +165,7 @@ cmd_dry_run() {
     echo "=== dry-run: forget+prune ==="
     cmd_forget
     echo
-    echo "=== dry-run: copy to NAS ==="
+    echo "=== dry-run: copy to remote ==="
     if mountpoint -q "$REMOTE_MOUNT"; then
         cmd_copy
     else
@@ -178,7 +178,7 @@ cmd_menu() {
     local options=(
         "backup"
         "forget+prune"
-        "copy to NAS"
+        "copy to remote"
         "snapshots (local)"
         "snapshots (remote)"
         "check (local)"
