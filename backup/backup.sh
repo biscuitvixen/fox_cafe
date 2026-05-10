@@ -32,7 +32,7 @@ fc_load_env
 
 fc_pause
 
-fc_backup
+fc_backup --tag nightly
 
 # Source data is captured - bring containers back up before the slower
 # repo-maintenance steps (forget/prune/copy) which only touch restic repos.

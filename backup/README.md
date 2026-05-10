@@ -211,8 +211,33 @@ sudo backup/backup-cli.sh copy --dry-run     # show what copy would ship
 sudo backup/backup-cli.sh dry-run            # full pipeline dry-run (backup+forget+copy)
 ```
 
-Manual backups are tagged `fox-cafe` *and* `manual` so they're easy to spot
-in `snapshots` output; nightly snapshots only carry `fox-cafe`.
+### Tags and retention
+
+Every snapshot carries `fox-cafe`. On top of that:
+
+- **Nightly** snapshots (from the systemd job) are tagged `nightly`.
+- **Manual** snapshots (from `backup-cli.sh backup`) are tagged `manual`.
+
+The retention policy in `fc_forget` is scoped to `--tag nightly`, so manual
+snapshots are **never selected for forget and are kept indefinitely**. That's
+deliberate: a manual snapshot is taken at a specific moment for a reason
+(before a Foundry upgrade, before a destructive maintenance op), and the whole
+point is to preserve that exact state until you decide otherwise.
+
+To clean up a manual snapshot when you no longer need it, forget it
+explicitly by ID:
+
+```bash
+sudo backup/backup-cli.sh snapshots                                  # find the ID
+sudo bash -c '. /etc/restic/fox-cafe.env && restic forget <id> --prune'
+```
+
+Retention also uses `--group-by host,tags` so all nightly snapshots pool into
+a single bucket regardless of which paths they covered. Without this, any
+change to the path list (renaming a foundry server, adding/removing a
+service, moving the data dir) would start a new restic group that retention
+treats independently, producing orphan single-snapshot groups that never age
+out.
 
 ## Restore
 

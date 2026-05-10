@@ -79,8 +79,33 @@ cmd_backup() {
 cmd_forget() { fc_forget $(dry_args); }
 
 cmd_copy() {
+    if [[ "$DRY_RUN" -eq 1 ]]; then
+        # restic copy has no --dry-run flag, so show the snapshot diff instead:
+        # snapshots present locally but missing on the remote are what a real
+        # `copy` run would ship.
+        # restic copy has no --dry-run flag of its own, so we approximate it
+        # by diffing snapshot IDs: anything in the local repo with an ID not
+        # present on the remote is what a real `copy` run would ship.
+        echo "[dry-run] restic copy has no --dry-run; showing snapshots that would be copied:"
+        if ! mountpoint -q "$REMOTE_MOUNT"; then
+            echo "ERROR: $REMOTE_MOUNT not mounted" >&2
+            return 1
+        fi
+        local local_ids remote_ids missing
+        local_ids=$(restic -r "$LOCAL_REPOSITORY"  snapshots --json | jq -r '.[].id' | sort)
+        remote_ids=$(restic -r "$REMOTE_REPOSITORY" snapshots --json | jq -r '.[].id' | sort)
+        missing=$(comm -23 <(echo "$local_ids") <(echo "$remote_ids"))
+        if [[ -z "$missing" ]]; then
+            echo "(remote already has every local snapshot - nothing to copy)"
+        else
+            echo "$missing" | while read -r id; do
+                [[ -n "$id" ]] && restic -r "$LOCAL_REPOSITORY" snapshots "$id"
+            done
+        fi
+        return 0
+    fi
     local rc=0
-    fc_copy $(dry_args) || rc=$?
+    fc_copy || rc=$?
     if [[ "$rc" -eq 2 ]]; then
         echo "ERROR: $REMOTE_MOUNT not mounted" >&2
         return 1

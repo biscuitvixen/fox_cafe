@@ -82,14 +82,27 @@ fc_backup() {
 
 # fc_forget [extra restic args...]
 # Applies the retention policy + prune against the local repo.
+#
+# Scoped to --tag nightly so manual snapshots (tagged 'manual') are never
+# selected for forget and are kept indefinitely. To prune a manual snapshot
+# you have to forget it explicitly by ID.
+#
+# --group-by host,tags pools all nightly snapshots into one bucket regardless
+# of which paths they covered. Without this, restic groups by (host,paths,tags)
+# and any change to the path list (renaming a foundry server, moving the data
+# dir, adding/removing a service) starts a new group that retention then
+# treats independently - producing orphan groups of one snapshot each that
+# never age out. Pooling by host+tags keeps the policy applied across the
+# whole repo so old paths get pruned naturally as new snapshots accumulate.
 fc_forget() {
     "${RESTIC_NICE[@]}" restic forget \
+        --group-by host,tags \
         --keep-daily 7 \
         --keep-weekly 4 \
         --keep-monthly 3 \
         --keep-yearly 1 \
         --prune \
-        --tag fox-cafe \
+        --tag nightly \
         "$@"
 }
 
