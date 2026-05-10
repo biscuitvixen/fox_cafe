@@ -6,7 +6,7 @@
 #
 # Two-stage backup:
 #   1. restic → local repo on VPS disk (always runs, fast)
-#   2. rsync  → NFS mount over Tailscale (best-effort, skipped if not mounted)
+#   2. restic copy → NFS mount over Tailscale (best-effort, skipped if not mounted)
 #
 # Scheduled at 09:00 UTC daily via systemd timer:
 #   - US West Coast: 02:00 PDT
@@ -17,15 +17,18 @@
 # Prerequisites:
 #   1. restic installed on the host
 #   2. /etc/restic/fox-cafe.env created (see backup/README.md)
-#   3. Repo initialised: RESTIC_REPOSITORY=/var/backups/fox-cafe restic --password-file /etc/restic/fox-cafe.env init
+#   3. Repo initialised: . /etc/restic/fox-cafe.env && restic init
 #   4. NFS mount configured in /etc/fstab (see backup/README.md)
 #   5. systemd timer enabled: systemctl enable --now backup-fox-cafe.timer
 
 set -euo pipefail
 
 COMPOSE_DIR="$(cd "$(dirname "$0")/.." && pwd)"
-RESTIC_REPOSITORY=/var/backups/fox-cafe
-export RESTIC_REPOSITORY
+# LOCAL_REPOSITORY, REMOTE_MOUNT, and REMOTE_REPOSITORY are loaded from
+# /etc/restic/fox-cafe.env via systemd EnvironmentFile. Restic itself reads
+# RESTIC_REPOSITORY, so we mirror LOCAL_REPOSITORY into it for the bare
+# `restic backup` / `restic forget` calls below.
+export RESTIC_REPOSITORY="$LOCAL_REPOSITORY"
 
 # Containers to pause during backup - Caddy and monitoring stay up.
 # Filebrowser is included so its sqlite db is snapshotted with no writer attached.
@@ -67,11 +70,14 @@ restic forget \
   --prune \
   --tag fox-cafe
 
-# Sync local repo to NFS (best-effort - non-fatal if NAS is unavailable)
-# TODO: uncomment once NAS is reachable over Tailscale (see backup/README.md)
-# if mountpoint -q /mnt/tailscale-nas; then
-#     rsync -a --delete /var/backups/fox-cafe/ /mnt/tailscale-nas/fox-cafe/ \
-#       || echo "WARNING: NAS rsync failed - local backup still intact"
-# else
-#     echo "WARNING: /mnt/tailscale-nas not mounted - skipping NAS sync"
-# fi
+# Mirror local repo to NAS via restic copy (best-effort, non-fatal if NAS is unavailable).
+# Both repos share chunker params (set at NAS repo init) so dedup carries across; only
+# new pack files are sent each night. RESTIC_FROM_PASSWORD covers the source (--from-repo).
+if mountpoint -q "$REMOTE_MOUNT"; then
+    RESTIC_FROM_PASSWORD="$RESTIC_PASSWORD" \
+      restic -r "$REMOTE_REPOSITORY" copy \
+        --from-repo "$LOCAL_REPOSITORY" \
+      || echo "WARNING: NAS restic copy failed - local backup still intact"
+else
+    echo "WARNING: $REMOTE_MOUNT not mounted - skipping NAS copy"
+fi
