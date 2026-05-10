@@ -169,11 +169,50 @@ Note: `sudo` is required because the service runs as root (needed to read
 `data/caddy/data/` which is root-owned by the Caddy container). Without it,
 journalctl shows `-- No entries --`.
 
-List snapshots (env file provides `RESTIC_PASSWORD`, pick a repo with `-r`):
+List snapshots (via the CLI wrapper - it sources the env file for you):
 ```bash
-sudo bash -c '. /etc/restic/fox-cafe.env && restic -r "$LOCAL_REPOSITORY" snapshots'
-sudo bash -c '. /etc/restic/fox-cafe.env && restic -r "$REMOTE_REPOSITORY" snapshots'
+sudo backup/backup-cli.sh snapshots            # local repo
+sudo backup/backup-cli.sh snapshots --remote   # remote repo
 ```
+
+## Manual operations
+
+`backup-cli.sh` is a thin wrapper around the same `lib.sh` that the nightly
+job uses, so manual runs use identical paths, container set, retention
+policy, and nice/ionice tuning. Useful for ad-hoc backups, dry runs before
+changing the schedule, and pre-restore inspection.
+
+Run with `sudo` (needs to read `/etc/restic/fox-cafe.env` and the
+root-owned `data/caddy/data/`).
+
+Interactive menu:
+```bash
+sudo backup/backup-cli.sh menu
+```
+
+Single commands:
+```bash
+sudo backup/backup-cli.sh backup           # pause containers, backup, unpause
+sudo backup/backup-cli.sh forget           # apply retention policy + prune
+sudo backup/backup-cli.sh copy             # mirror local repo to remote
+sudo backup/backup-cli.sh snapshots        # list snapshots (add --remote for the remote repo)
+sudo backup/backup-cli.sh check            # verify repo integrity
+sudo backup/backup-cli.sh stats            # repo size / dedup stats
+sudo backup/backup-cli.sh unlock           # remove stale repo locks
+sudo backup/backup-cli.sh pause            # pause containers only
+sudo backup/backup-cli.sh unpause          # unpause containers only
+```
+
+Dry-run flags:
+```bash
+sudo backup/backup-cli.sh backup --dry-run   # backup with no writes (also skips pause/unpause)
+sudo backup/backup-cli.sh forget --dry-run   # show what forget+prune would remove
+sudo backup/backup-cli.sh copy --dry-run     # show what copy would ship
+sudo backup/backup-cli.sh dry-run            # full pipeline dry-run (backup+forget+copy)
+```
+
+Manual backups are tagged `fox-cafe` *and* `manual` so they're easy to spot
+in `snapshots` output; nightly snapshots only carry `fox-cafe`.
 
 ## Restore
 
