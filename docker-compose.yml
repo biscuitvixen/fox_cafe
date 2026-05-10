@@ -288,6 +288,15 @@ services:
     volumes:
       - /var/run/docker.sock:/var/run/docker.sock:ro
     networks: [socket_proxy]
+    # /_ping is allowed by default in tecnativa/docker-socket-proxy (PING=1)
+    # and is the canonical "daemon reachable" probe - safe to hit, exposes
+    # nothing sensitive. busybox wget ships in the Alpine base.
+    healthcheck:
+      test: ["CMD", "wget", "--spider", "-q", "http://localhost:2375/_ping"]
+      interval: 30s
+      timeout: 5s
+      retries: 3
+      start_period: 10s
 
   dozzle:
     <<: *hardening
@@ -301,13 +310,24 @@ services:
     read_only: true
     tmpfs:
       - /tmp:size=16m,mode=1777
+    # Wait for the proxy to be healthy, not just started. Without
+    # service_healthy Dozzle races the proxy on `docker compose up` and
+    # logs a stream of connection errors until the proxy finishes booting.
     depends_on:
-      - docker-socket-proxy
+      docker-socket-proxy:
+        condition: service_healthy
     environment:
       DOZZLE_NO_ANALYTICS: "true"
       # Talk to the proxy over TCP instead of mounting the host socket.
       DOCKER_HOST: tcp://docker-socket-proxy:2375
     networks: [web, socket_proxy]
+    # Dozzle ships a built-in healthcheck subcommand, not active by default?
+    healthcheck:
+      test: ["CMD", "/dozzle", "healthcheck"]
+      interval: 30s
+      timeout: 5s
+      retries: 3
+      start_period: 10s
 
   # ─────────────────────────────────────────────────────────────────────
   # Updates are handled manually for stability.
