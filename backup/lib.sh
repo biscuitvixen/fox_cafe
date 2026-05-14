@@ -35,17 +35,19 @@ fc_load_env() {
 # pause/unpause (SIGSTOP/SIGCONT) is used instead of stop/start so Docker
 # doesn't treat the exit as a crash and auto-restart containers mid-backup.
 CONTAINERS=(
+  foundry-demiplane
   foundry-beastworld
-  foundry-starwars
   filebrowser
   crowdsec
 )
 
 BACKUP_PATHS=(
+  # foundry-demiplane was previously named foundry-starwars; older restic
+  # snapshots will have those paths instead.
+  "$COMPOSE_DIR/data/foundry-demiplane/Data"
+  "$COMPOSE_DIR/data/foundry-demiplane/Config"
   "$COMPOSE_DIR/data/foundry-beastworld/Data"
   "$COMPOSE_DIR/data/foundry-beastworld/Config"
-  "$COMPOSE_DIR/data/foundry-starwars/Data"
-  "$COMPOSE_DIR/data/foundry-starwars/Config"
   "$COMPOSE_DIR/data/filebrowser"
   "$COMPOSE_DIR/data/caddy/data"
   # crowdsec/data: SQLite decisions DB + machine identity (re-registering

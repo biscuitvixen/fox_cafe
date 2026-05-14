@@ -130,7 +130,7 @@
         }
 
         # Demiplane games - demiplane guild + admin.
-        # Currently gates both beastworld and starwars; split into per-game
+        # Currently gates both demiplane and beastworld; split into per-game
         # policies if/when those games need separate guilds.
         authorization policy demiplane_policy {
             set auth url https://auth.bluefox.cafe/auth/
@@ -477,14 +477,14 @@ dnd.bluefox.cafe {
 #     encode zstd gzip
 # }
 
+demiplane.bluefox.cafe {
+    import access_log
+    import gated_proxy_site demiplane demiplane_policy foundry-demiplane:30000
+}
+
 beastworld.bluefox.cafe {
     import access_log
     import gated_proxy_site beastworld demiplane_policy foundry-beastworld:30000
-}
-
-starwars.bluefox.cafe {
-    import access_log
-    import gated_proxy_site starwars demiplane_policy foundry-starwars:30000
 }
 
 # Add a new game by copying a block above and pointing it at the matching

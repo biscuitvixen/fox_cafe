@@ -155,6 +155,18 @@ services:
   #   volumes:
   #     - ./data/foundry-test:/data
 
+  foundry-demiplane:
+    <<: *foundry-base
+    container_name: foundry-demiplane
+    environment:
+      <<: *foundry-env
+      FOUNDRY_USERNAME:    ${FOUNDRY_USERNAME_BISCUIT}
+      FOUNDRY_PASSWORD:    ${FOUNDRY_PASSWORD_BISCUIT}
+      FOUNDRY_LICENSE_KEY: ${FOUNDRY_LICENSE_BISCUIT}
+      FOUNDRY_HOSTNAME:    demiplane.bluefox.cafe
+    volumes:
+      - ./data/foundry-demiplane:/data
+
   foundry-beastworld:
     <<: *foundry-base
     image: felddy/foundryvtt:13 # This game is still on v13, pinned to the latest v13 patch
@@ -167,18 +179,6 @@ services:
       FOUNDRY_HOSTNAME:    beastworld.bluefox.cafe
     volumes:
       - ./data/foundry-beastworld:/data
-
-  foundry-starwars:
-    <<: *foundry-base
-    container_name: foundry-starwars
-    environment:
-      <<: *foundry-env
-      FOUNDRY_USERNAME:    ${FOUNDRY_USERNAME_BISCUIT}
-      FOUNDRY_PASSWORD:    ${FOUNDRY_PASSWORD_BISCUIT}
-      FOUNDRY_LICENSE_KEY: ${FOUNDRY_LICENSE_BISCUIT}
-      FOUNDRY_HOSTNAME:    starwars.bluefox.cafe
-    volumes:
-      - ./data/foundry-starwars:/data
 
   # To add a game: copy a block above, swap the suffix, add matching
   # FOUNDRY_*_<NAME> vars to .env, add the Caddyfile site block, and add
@@ -210,7 +210,7 @@ services:
   # Filebrowser - shared across all games. Per-user scoping is configured
   # inside filebrowser itself (Settings → Users), not at the mount layer.
   # Each game's Data dir is mounted under /srv/<game>/ so you can scope
-  # a user to e.g. /srv/starwars and they only see that game's data.
+  # a user to e.g. /srv/demiplane and they only see that game's data.
   #
   # First-run setup (one-time):
   #   mkdir -p ./data/filebrowser
@@ -236,8 +236,8 @@ services:
     volumes:
       - ./data/filebrowser/database.db:/database.db
       - ./data/filebrowser/settings.json:/config/settings.json:ro
+      - ./data/foundry-demiplane/Data:/srv/demiplane
       - ./data/foundry-beastworld/Data:/srv/beastworld
-      - ./data/foundry-starwars/Data:/srv/starwars
     networks: [web]
 
   # Docker socket proxy - sits between Dozzle and /var/run/docker.sock and

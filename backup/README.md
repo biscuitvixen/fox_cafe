@@ -18,10 +18,10 @@ All paths are configured via the env file in step 3 below, loaded by the script 
 
 | Path | Contents | Why |
 |------|----------|-----|
-| `data/foundry-beastworld/Data` | Worlds, modules, assets, systems | Irreplaceable campaign data |
-| `data/foundry-beastworld/Config` | License, options | Quick to recreate, but handy |
-| `data/foundry-starwars/Data` | Same | Same |
-| `data/foundry-starwars/Config` | Same | Same |
+| `data/foundry-demiplane/Data` | Worlds, modules, assets, systems | Irreplaceable campaign data |
+| `data/foundry-demiplane/Config` | License, options | Quick to recreate, but handy |
+| `data/foundry-beastworld/Data` | Same | Same |
+| `data/foundry-beastworld/Config` | Same | Same |
 | `data/caddy/data` | ACME certs + state | Let's Encrypt rate-limits re-issuance to 5/week per domain - losing this is painful |
 | `data/filebrowser` | Filebrowser DB + settings | User accounts, scopes, share links |
 | `.env` | Discord OAuth creds, JWT key, Foundry licenses | Required to start the stack. Same security boundary as the restic password file (both plaintext on host) so no extra exposure. |

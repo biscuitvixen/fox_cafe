@@ -162,8 +162,8 @@ Use these targets instead (they resolve over the `web` bridge network):
 - https://bluefox.cafe - public homepage (no auth)
 - https://auth.bluefox.cafe - Discord login (OAuth callback)
 - https://dnd.bluefox.cafe - gated landing page (any guild member)
+- https://demiplane.bluefox.cafe - Demiplane campaign (Demiplane guild + admin)
 - https://beastworld.bluefox.cafe - Beastworld campaign (Demiplane guild + admin)
-- https://starwars.bluefox.cafe - Star Wars campaign (Demiplane guild + admin)
 - https://test.bluefox.cafe - sandbox Foundry (admin only)
 - https://kuma.bluefox.cafe - uptime monitoring (admin only)
 - https://logs.bluefox.cafe - container logs (admin only)
@@ -177,7 +177,7 @@ user has - the cookie is the same, the authorization differs per site.
 Roles assigned by the Caddyfile transforms:
 
 - `authp/guild_demiplane` - set if the user is in the Demiplane Discord guild
-  (currently gates both Beastworld and Star Wars)
+  (currently gates both Demiplane and Beastworld)
 - `authp/member`          - set if the user is in any gating guild
 - `authp/admin`           - set if the user's Discord ID matches `DISCORD_ADMIN_USER_ID`
 - `authp/user`            - set on every Discord login (compatibility for authcrunch internals; not used for service authorization)
@@ -189,5 +189,5 @@ is present in the Caddyfile but commented out - activate the transform,
 Policies (one per access tier):
 
 - `dnd_policy`       - `authp/member` or `authp/admin`
-- `demiplane_policy` - `authp/guild_demiplane` or `authp/admin` (gates beastworld + starwars)
+- `demiplane_policy` - `authp/guild_demiplane` or `authp/admin` (gates demiplane + beastworld)
 - `admin_policy`     - `authp/admin` only
