@@ -6,12 +6,16 @@
 #
 # Usage:
 #   sudo backup/backup-cli.sh <command> [--dry-run] [--remote]
+#   sudo backup/backup-cli.sh delete <snapshot-id> [--dry-run] [--remote]
 #   sudo backup/backup-cli.sh menu              # interactive picker
 #
 # Commands:
 #   backup              Pause containers, run restic backup, unpause
 #   forget              Apply retention policy + prune (local repo)
 #   copy                Copy local repo to remote
+#   delete <id>         Forget + prune a specific snapshot by ID. Use this for
+#                       manual snapshots (which the nightly forget never touches)
+#                       or to remove a one-off mistake. Default: local repo.
 #   snapshots           List snapshots (default: local; --remote for remote)
 #   check               Verify repo integrity (default: local; --remote for remote)
 #   stats               Repo size / dedup stats (default: local; --remote for remote)
@@ -35,8 +39,9 @@ fc_load_env
 DRY_RUN=0
 REMOTE=0
 CMD=""
+SNAPSHOT_ID=""
 
-usage() { sed -n '2,28p' "$0" | sed 's/^# \{0,1\}//'; }
+usage() { sed -n '2,30p' "$0" | sed 's/^# \{0,1\}//'; }
 
 parse_args() {
     while [[ $# -gt 0 ]]; do
@@ -47,6 +52,8 @@ parse_args() {
             *)
                 if [[ -z "$CMD" ]]; then
                     CMD="$1"
+                elif [[ "$CMD" == "delete" && -z "$SNAPSHOT_ID" ]]; then
+                    SNAPSHOT_ID="$1"
                 else
                     echo "ERROR: unexpected argument: $1" >&2
                     exit 2
@@ -113,6 +120,17 @@ cmd_copy() {
     return "$rc"
 }
 
+# Delete a specific snapshot by ID. `restic forget <id> --prune` removes the
+# snapshot reference and immediately reclaims its unique data. --prune honours
+# --dry-run, so dry runs are non-destructive end to end.
+cmd_delete() {
+    if [[ -z "$SNAPSHOT_ID" ]]; then
+        echo "ERROR: delete requires a snapshot ID (see 'snapshots' to find one)" >&2
+        return 2
+    fi
+    "${RESTIC_NICE[@]}" restic -r "$(target_repo)" forget --prune $(dry_args) "$SNAPSHOT_ID"
+}
+
 cmd_snapshots() { restic -r "$(target_repo)" snapshots; }
 cmd_check()     { restic -r "$(target_repo)" check; }
 cmd_stats()     { restic -r "$(target_repo)" stats; }
@@ -140,6 +158,8 @@ cmd_menu() {
         "backup"
         "forget+prune"
         "copy to remote"
+        "delete snapshot (local)"
+        "delete snapshot (remote)"
         "snapshots (local)"
         "snapshots (remote)"
         "check (local)"
@@ -158,6 +178,8 @@ cmd_menu() {
             "backup")             cmd_backup;    break ;;
             "forget+prune")       cmd_forget;    break ;;
             "copy to remote")        cmd_copy;      break ;;
+            "delete snapshot (local)")  REMOTE=0; read -rp "snapshot ID: " SNAPSHOT_ID; cmd_delete; break ;;
+            "delete snapshot (remote)") REMOTE=1; read -rp "snapshot ID: " SNAPSHOT_ID; cmd_delete; break ;;
             "snapshots (local)")  REMOTE=0; cmd_snapshots; break ;;
             "snapshots (remote)") REMOTE=1; cmd_snapshots; break ;;
             "check (local)")      REMOTE=0; cmd_check;     break ;;
@@ -181,6 +203,7 @@ case "${CMD:-menu}" in
     backup)    cmd_backup ;;
     forget)    cmd_forget ;;
     copy)      cmd_copy ;;
+    delete)    cmd_delete ;;
     snapshots) cmd_snapshots ;;
     check)     cmd_check ;;
     stats)     cmd_stats ;;
