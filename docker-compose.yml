@@ -161,9 +161,9 @@ services:
     container_name: foundry-demiplane
     environment:
       <<: *foundry-env
-      FOUNDRY_USERNAME:    ${FOUNDRY_USERNAME_BISCUIT}
-      FOUNDRY_PASSWORD:    ${FOUNDRY_PASSWORD_BISCUIT}
-      FOUNDRY_LICENSE_KEY: ${FOUNDRY_LICENSE_BISCUIT}
+      FOUNDRY_USERNAME:    ${FOUNDRY_USERNAME_ZANDER}
+      FOUNDRY_PASSWORD:    ${FOUNDRY_PASSWORD_ZANDER}
+      FOUNDRY_LICENSE_KEY: ${FOUNDRY_LICENSE_ZANDER}
       FOUNDRY_HOSTNAME:    demiplane.bluefox.cafe
     volumes:
       - ./data/foundry-demiplane:/data
