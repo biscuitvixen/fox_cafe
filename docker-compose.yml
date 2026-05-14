@@ -123,6 +123,7 @@ services:
       - caddy_logs:/var/log/caddy
     environment:
       ACME_EMAIL:               ${ACME_EMAIL}
+      CLOUDFLARE_API_TOKEN:     ${CLOUDFLARE_API_TOKEN}
       JWT_SHARED_KEY:           ${JWT_SHARED_KEY}
       DISCORD_CLIENT_ID:        ${DISCORD_CLIENT_ID}
       DISCORD_CLIENT_SECRET:    ${DISCORD_CLIENT_SECRET}

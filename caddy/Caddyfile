@@ -3,6 +3,12 @@
 
     email {$ACME_EMAIL}
 
+    # Use Cloudflare DNS-01 for every ACME challenge. Required for the
+    # *.bluefox.cafe wildcard cert (HTTP-01 can't do wildcards), and
+    # nicely removes the port-80 dependency for renewals on every other
+    # site too. Token needs Zone:DNS:Edit scoped to bluefox.cafe.
+    acme_dns cloudflare {$CLOUDFLARE_API_TOKEN}
+
     # Disable the admin API on its default port. We don't manage Caddy via API,
     # and leaving this open inside the container is mild attack surface.
     admin off
@@ -516,4 +522,19 @@ logs.bluefox.cafe {
 files.bluefox.cafe {
     import access_log
     import gated_proxy_site files dnd_policy filebrowser:80
+}
+
+# ─────────────────────────────────────────────────────────────────────
+# Catchall - any *.bluefox.cafe subdomain not matched above.
+# Without this, unknown subdomains hit Caddy's default fallback with no
+# valid cert for that hostname, so browsers show a cert mismatch warning
+# before the user ever sees a response. The wildcard cert (issued via
+# Cloudflare DNS-01) covers anything under bluefox.cafe so we can return
+# a clean themed 404 instead.
+# ─────────────────────────────────────────────────────────────────────
+*.bluefox.cafe {
+    import access_log
+    import security_headers
+    import error_pages
+    error 404
 }
