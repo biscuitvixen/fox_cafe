@@ -152,6 +152,7 @@ services:
   #     FOUNDRY_USERNAME:    ${FOUNDRY_USERNAME_BISCUIT}
   #     FOUNDRY_PASSWORD:    ${FOUNDRY_PASSWORD_BISCUIT}
   #     FOUNDRY_LICENSE_KEY: ${FOUNDRY_LICENSE_BISCUIT}
+  #     FOUNDRY_ADMIN_KEY:   ${FOUNDRY_ADMIN_KEY_BISCUIT}
   #     FOUNDRY_HOSTNAME:    test.bluefox.cafe
   #   volumes:
   #     - ./data/foundry-test:/data
@@ -164,6 +165,7 @@ services:
       FOUNDRY_USERNAME:    ${FOUNDRY_USERNAME_ZANDER}
       FOUNDRY_PASSWORD:    ${FOUNDRY_PASSWORD_ZANDER}
       FOUNDRY_LICENSE_KEY: ${FOUNDRY_LICENSE_ZANDER}
+      FOUNDRY_ADMIN_KEY:   ${FOUNDRY_ADMIN_KEY_ZANDER}
       FOUNDRY_HOSTNAME:    demiplane.bluefox.cafe
     volumes:
       - ./data/foundry-demiplane:/data
@@ -177,6 +179,7 @@ services:
       FOUNDRY_USERNAME:    ${FOUNDRY_USERNAME_RISUNA}
       FOUNDRY_PASSWORD:    ${FOUNDRY_PASSWORD_RISUNA}
       FOUNDRY_LICENSE_KEY: ${FOUNDRY_LICENSE_RISUNA}
+      FOUNDRY_ADMIN_KEY:   ${FOUNDRY_ADMIN_KEY_RISUNA}
       FOUNDRY_HOSTNAME:    beastworld.bluefox.cafe
     volumes:
       - ./data/foundry-beastworld:/data
