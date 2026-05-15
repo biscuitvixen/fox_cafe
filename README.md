@@ -35,6 +35,44 @@ sets `COMPOSE_FILE` to merge the appropriate overlay:
 `overlays/prod.yml` publishes ports 80, 443, and 443/udp on the host.
 Create equivalent overlay files for staging/dev as needed (e.g. 8080/8443).
 
+## Theme testing
+
+`overlays/dev.yml` adds a standalone `caddy-dev` service — plain `caddy:alpine`,
+no TLS, no auth, no connection to the prod stack. It serves all static pages on
+`127.0.0.1:8081` from the same bind-mounted `caddy/` directories, so edits to
+HTML, CSS, and JS are reflected on the next browser refresh with no rebuild.
+
+> **Note:** Port 8080 is taken by CrowdSec's LAPI. The dev overlay uses 8081.
+
+```bash
+# Start (--no-deps skips all other services in the compose file)
+docker compose -f docker-compose.yml -f overlays/dev.yml up caddy-dev --no-deps
+
+# Working from a laptop? SSH tunnel first:
+ssh -L 8081:localhost:8081 your-server
+# then open http://localhost:8081
+```
+
+Available at `http://localhost:8081`:
+
+| Path | Page |
+|------|------|
+| `/` | Homepage |
+| `/dnd` | DnD landing page |
+| `/shared/theme.css`, `/shared/theme.js` | Shared theme assets |
+| `/preview/beastworld/`, `/preview/demiplane/`, `/preview/dnd/`, `/preview/files/` | Bot link-preview cards |
+| `/preview/403`, `/preview/404`, `/preview/500`–`/preview/503` | Error pages (no admin gate in dev) |
+| `/forbidden` | 403 page directly |
+
+Auth gates are stripped — all pages render immediately. OAuth links still point
+to `auth.bluefox.cafe`, but following them is fine; you just won't land back on
+localhost afterward.
+
+**Preview pages** (`/preview/beastworld/` etc.) still load `theme.css`/`theme.js`
+from `https://bluefox.cafe/shared/` because in prod they're served from
+subdomains that resolve `/shared/` against their own domain. To test theme
+changes, use the homepage or the DnD landing page instead.
+
 ## Adding a new game
 
 Each game is gated by its own Discord guild. Adding one means wiring up a new

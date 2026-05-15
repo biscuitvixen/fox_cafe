@@ -1,0 +1,90 @@
+{
+    # Dev-only: no ACME, no TLS, no auth plugin needed.
+    admin off
+}
+
+:80 {
+    handle_errors 401 403 {
+        root * /srv/errors
+        rewrite * /403.html
+        file_server
+    }
+    handle_errors 404 {
+        root * /srv/errors
+        rewrite * /404.html
+        file_server
+    }
+    handle_errors 500 502 503 504 {
+        root * /srv/errors
+        rewrite * /5xx.html
+        file_server
+    }
+
+    # Shared theme assets - served at /shared/* so root-relative references
+    # in the HTML resolve correctly against this dev server.
+    handle_path /shared/* {
+        root * /srv/shared
+        file_server
+    }
+
+    # Bot link-preview pages, exposed at predictable dev paths.
+    # Note: preview pages still reference https://bluefox.cafe/shared/... (absolute
+    # URL) because in prod they're served from *.bluefox.cafe subdomains where a
+    # root-relative /shared/ wouldn't resolve. Test theme changes via the homepage
+    # or dnd landing instead.
+    handle_path /preview/beastworld/* {
+        root * /srv/previews/beastworld
+        file_server
+    }
+    handle_path /preview/demiplane/* {
+        root * /srv/previews/demiplane
+        file_server
+    }
+    handle_path /preview/dnd/* {
+        root * /srv/previews/dnd
+        file_server
+    }
+    handle_path /preview/files/* {
+        root * /srv/previews/files
+        file_server
+    }
+
+    # Error page previews - open in dev (no admin gate needed).
+    handle /preview/403 {
+        error 403
+    }
+    handle /preview/404 {
+        error 404
+    }
+    handle /preview/500 {
+        error 500
+    }
+    handle /preview/502 {
+        error 502
+    }
+    handle /preview/503 {
+        error 503
+    }
+
+    # /forbidden mirrors the prod auth redirect target.
+    handle /forbidden {
+        root * /srv/errors
+        rewrite * /403.html
+        file_server
+    }
+
+    # DnD landing page (gated in prod, open in dev).
+    handle /dnd* {
+        root * /srv/dnd
+        rewrite * /index.html
+        file_server
+    }
+
+    # Homepage - catch-all.
+    handle {
+        root * /srv/homepage
+        file_server
+    }
+
+    encode zstd gzip
+}

@@ -1,0 +1,24 @@
+# Dev overlay – lightweight static server for theme/UI testing.
+# Adds a plain caddy:alpine sidecar on 127.0.0.1:8081; no TLS, no auth,
+# no shared networks with the prod stack.
+#
+# Run alongside prod:
+#   docker compose -f docker-compose.yml -f overlays/dev.yml up caddy-dev
+# Run standalone (no prod services needed):
+#   docker compose -f docker-compose.yml -f overlays/dev.yml up caddy-dev --no-deps
+# Laptop access via SSH tunnel:
+#   ssh -L 8081:localhost:8081 your-server  →  http://localhost:8081
+services:
+  caddy-dev:
+    image: caddy:alpine
+    container_name: caddy-dev
+    restart: "no"
+    ports:
+      - "127.0.0.1:8081:80"   # localhost only; 8080 is taken by CrowdSec LAPI
+    volumes:
+      - ./caddy/Caddyfile.dev:/etc/caddy/Caddyfile:ro
+      - ./caddy/homepage:/srv/homepage:ro
+      - ./caddy/dnd:/srv/dnd:ro
+      - ./caddy/shared:/srv/shared:ro
+      - ./caddy/errors:/srv/errors:ro
+      - ./caddy/previews:/srv/previews:ro
