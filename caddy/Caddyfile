@@ -216,6 +216,16 @@
 # Reusable snippets - keep per-site config DRY
 # ─────────────────────────────────────────────────────────────────────
 
+# Serves /srv/shared at /shared/*. Imported by every site that renders
+# HTML referencing /shared/theme.css or /shared/theme.js - both directly
+# on page load and indirectly via error pages rendered at the subdomain.
+(shared_assets) {
+    handle_path /shared/* {
+        root * /srv/shared
+        file_server
+    }
+}
+
 # Strict CSP for the static landing pages (homepage, dnd). Blocks any
 # resource not loaded from one of the explicit origins below - even if an
 # attacker manages to inject HTML, they can't pull a payload from a
@@ -342,6 +352,7 @@
     import static_csp
     import error_pages
     import preview_bot {args[0]}
+    import shared_assets
 
     handle {
         authorize with {args[1]}
@@ -364,6 +375,7 @@
     import security_headers
     import error_pages
     import preview_bot {args[0]}
+    import shared_assets
 
     handle {
         authorize with {args[1]}
@@ -458,6 +470,7 @@ auth.bluefox.cafe {
     import access_log
     import security_headers
     import error_pages
+    import shared_assets
     route /auth* {
         authenticate with foundryauth
     }
@@ -504,6 +517,7 @@ kuma.bluefox.cafe {
     import access_log
     import gated_admin
     import error_pages
+    import shared_assets
     reverse_proxy uptime-kuma:3001
 }
 
@@ -511,6 +525,7 @@ logs.bluefox.cafe {
     import access_log
     import gated_admin
     import error_pages
+    import shared_assets
     reverse_proxy dozzle:8080
 }
 
@@ -536,5 +551,6 @@ files.bluefox.cafe {
     import access_log
     import security_headers
     import error_pages
+    import shared_assets
     error 404
 }
