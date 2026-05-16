@@ -39,7 +39,7 @@
             <div class="flex flex-col gap-3">
                 <a v-for="game in games"
                    :key="game.href"
-                   :href="game.href"
+                   :href="resolveUrl(game.href)"
                    class="group relative block overflow-hidden rounded-2xl bg-sides ring-1 ring-white/5
                           shadow-float transition-all duration-200
                           hover:-translate-y-0.5 hover:shadow-lift hover:ring-eyes/40">
@@ -65,7 +65,7 @@
             <div class="flex flex-col gap-1.5">
                 <a v-for="tool in tools"
                    :key="tool.href"
-                   :href="tool.href"
+                   :href="resolveUrl(tool.href)"
                    class="group flex items-center gap-3 px-4 py-2.5 rounded-lg
                           bg-sides/40 ring-1 ring-white/5
                           hover:bg-sides hover:ring-white/10 transition-all duration-150">
@@ -105,6 +105,7 @@
 
     <script>
         const { createApp } = Vue;
+
         createApp({
             data() {
                 return {
@@ -120,6 +121,9 @@
                         { name: 'Dozzle',       icon: '📜', desc: 'Container logs',     href: 'https://logs.bluefox.cafe' },
                     ],
                 };
+            },
+            methods: {
+                resolveUrl(url) { return devUrls.resolve(url); },
             },
         }).mount('#app');
     </script>

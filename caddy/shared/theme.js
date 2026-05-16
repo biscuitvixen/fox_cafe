@@ -30,3 +30,16 @@ tailwind.config = {
         },
     },
 };
+
+// Dev URL rewriting - maps production URLs to local dev-server paths.
+// Only active when the page is not served from bluefox.cafe.
+window.devUrls = {
+    _map: {
+        'https://dnd.bluefox.cafe':          '/dnd',
+        'https://demiplane.bluefox.cafe':    '/preview/demiplane/',
+        'https://beastworld.bluefox.cafe':   '/preview/beastworld/',
+        'https://files.bluefox.cafe':        '/preview/files/',
+    },
+    _isDev: window.location.hostname !== 'bluefox.cafe',
+    resolve(url) { return this._isDev ? (this._map[url] ?? url) : url; },
+};

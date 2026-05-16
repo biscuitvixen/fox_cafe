@@ -22,7 +22,7 @@
             <nav class="flex flex-col gap-3">
                 <a v-for="link in links"
                    :key="link.href"
-                   :href="link.href"
+                   :href="resolveUrl(link.href)"
                    :class="[
                        'group relative block px-5 py-3.5 rounded-xl font-medium',
                        'shadow-float transition-all duration-200',
@@ -43,16 +43,20 @@
 
     <script>
         const { createApp } = Vue;
+
         createApp({
             data() {
                 return {
                     tagline: 'Hosting, gaming, and bits and pieces.',
                     links: [
-                        { label: 'DnD',       href: 'https://dnd.bluefox.cafe', primary: true },
-                        { label: 'GitHub',    href: 'https://github.com/',  icon: '🐙' },
-                        { label: 'Discord',   href: 'https://discord.com/', icon: '💬' },
+                        { label: 'DnD',     href: 'https://dnd.bluefox.cafe', primary: true },
+                        { label: 'GitHub',  href: 'https://github.com/',  icon: '🐙' },
+                        { label: 'Discord', href: 'https://discord.com/', icon: '💬' },
                     ],
                 };
+            },
+            methods: {
+                resolveUrl(url) { return devUrls.resolve(url); },
             },
         }).mount('#app');
     </script>
