@@ -35,6 +35,7 @@ tailwind.config = {
 // Only active when the page is not served from bluefox.cafe.
 window.devUrls = {
     _map: {
+        'https://bluefox.cafe':              '/',
         'https://dnd.bluefox.cafe':          '/dnd',
         'https://demiplane.bluefox.cafe':    '/preview/demiplane/',
         'https://beastworld.bluefox.cafe':   '/preview/beastworld/',

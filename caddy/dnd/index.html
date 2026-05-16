@@ -18,6 +18,13 @@
 <body class="font-sans">
     <div id="app" class="max-w-3xl mx-auto px-6 py-10">
 
+        <!-- Back to home -->
+        <a :href="resolveUrl('https://bluefox.cafe')"
+           class="group inline-flex items-center gap-2 mb-6 text-sm text-white/45 hover:text-white transition-colors">
+            <i class="fa-solid fa-arrow-left transition-transform group-hover:-translate-x-0.5"></i>
+            bluefox.cafe
+        </a>
+
         <!-- Header / hero -->
         <header class="hero-card relative overflow-hidden rounded-3xl mb-10 p-8 ring-1 ring-white/10 shadow-float">
             <div class="orb-eyes absolute -top-16 -right-16 w-56 h-56 rounded-full opacity-55 blur-3xl"></div>
