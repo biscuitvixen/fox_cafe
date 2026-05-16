@@ -8,18 +8,40 @@
     <script src="https://cdn.tailwindcss.com"></script>
     <script src="/shared/theme.js"></script>
     <link rel="stylesheet" href="/shared/theme.css">
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.5.2/css/all.min.css">
     <script src="https://unpkg.com/vue@3/dist/vue.global.prod.js"></script>
+    <style>
+        /* Status line: old phrase slides out left, new one slides in from right. */
+        .slide-enter-active,
+        .slide-leave-active { transition: transform .45s ease, opacity .45s ease; }
+        .slide-enter-from   { transform: translateX(60%);  opacity: 0; }
+        .slide-leave-to     { transform: translateX(-60%); opacity: 0; }
+    </style>
 </head>
 <body class="font-sans">
     <div id="app" class="flex items-center justify-center min-h-screen p-6">
-        <main class="w-full max-w-md text-center">
-            <div class="w-24 h-24 mx-auto mb-5 rounded-full flex items-center justify-center text-4xl shadow-float ring-1 ring-white/10"
-                 style="background: linear-gradient(135deg, #497bd6 0%, #24d962 100%);">
-                🦊
-            </div>
-            <h1 class="text-2xl font-bold tracking-tight mb-1">bluefox.cafe</h1>
-            <p class="text-white/60 text-sm mb-8">{{ tagline }}</p>
+        <main class="w-full max-w-md">
+            <!-- Identity -->
+            <div class="text-center mb-8">
+                <img src="/shared/og/sandy.webp" alt="Sandra"
+                     class="w-24 h-24 mx-auto mb-5 rounded-full object-cover shadow-float ring-1 ring-white/10 glow-belly">
+                <h1 class="text-2xl font-bold tracking-tight">bluefox.cafe</h1>
+                <p class="text-white/50 text-sm mt-1">Sandy's corner of the internet</p>
 
+                <!-- Rotating status - the one bit of motion on the page -->
+                <p class="mt-4 text-sm text-eyes/90 h-5 relative overflow-hidden">
+                    <Transition name="slide" mode="out-in">
+                        <span :key="roleIndex" class="block">{{ roles[roleIndex] }}</span>
+                    </Transition>
+                </p>
+
+                <p class="mt-4 text-white/60 text-sm leading-relaxed">
+                    Tabletop nights, glowing fursuit electronics, and far too many
+                    half-built projects. This little server is where I keep them.
+                </p>
+            </div>
+
+            <!-- Services -->
             <nav class="flex flex-col gap-3">
                 <a v-for="link in links"
                    :key="link.href"
@@ -32,13 +54,51 @@
                            ? 'bg-belly text-white hover:brightness-110'
                            : 'bg-sides text-white ring-1 ring-white/5 hover:ring-eyes/50',
                    ]">
-                    <span class="inline-flex items-center gap-2">
-                        <span v-if="link.icon" class="text-lg">{{ link.icon }}</span>
+                    <span class="flex w-full items-center gap-2">
+                        <i v-if="link.faIcon" :class="link.faIcon" class="text-lg"></i>
+                        <span v-else-if="link.icon" class="text-lg">{{ link.icon }}</span>
                         {{ link.label }}
-                        <span v-if="link.primary" class="transition-transform group-hover:translate-x-1">→</span>
+                        <span v-if="link.sub" class="text-white/40 text-xs font-normal">{{ link.sub }}</span>
+                        <span v-if="link.primary" class="ml-auto transition-transform group-hover:translate-x-1">→</span>
                     </span>
                 </a>
             </nav>
+
+            <!-- Roadmap - signals this page is growing, not unfinished -->
+            <div class="mt-8 text-center">
+                <p class="text-white/30 text-xs uppercase tracking-wider mb-2">Coming soon</p>
+                <div class="flex justify-center gap-2 flex-wrap">
+                    <span v-for="item in soon" :key="item"
+                          class="px-3 py-1 rounded-full text-xs text-white/40 bg-white/[0.03] ring-1 ring-white/5">
+                        {{ item }}
+                    </span>
+                </div>
+            </div>
+
+            <!-- Ops - compact admin list, kept low-key on a public page -->
+            <section class="mt-8">
+                <h2 class="text-xs uppercase tracking-[0.2em] text-white/40 mb-3 px-1 flex items-center gap-2">
+                    Ops
+                    <span class="text-[10px] normal-case tracking-wide text-eyes/70">admin</span>
+                </h2>
+                <div class="flex flex-col gap-1.5">
+                    <a v-for="tool in ops"
+                       :key="tool.href"
+                       :href="tool.href"
+                       class="group flex items-center gap-3 px-4 py-2.5 rounded-lg
+                              bg-sides/40 ring-1 ring-white/5
+                              hover:bg-sides hover:ring-white/10 transition-all duration-150">
+                        <div class="text-base w-5 text-center">{{ tool.icon }}</div>
+                        <div class="font-medium text-sm">{{ tool.name }}</div>
+                        <div class="text-xs text-white/40 truncate">{{ tool.desc }}</div>
+                        <div class="ml-auto text-white/30 group-hover:text-eyes transition-colors text-sm">→</div>
+                    </a>
+                </div>
+            </section>
+
+            <footer class="mt-10 text-center text-white/25 text-xs">
+                Built &amp; broken by Sandra
+            </footer>
         </main>
     </div>
 
@@ -48,13 +108,34 @@
         createApp({
             data() {
                 return {
-                    tagline: 'Hosting, gaming, and bits and pieces.',
+                    roles: [
+                        'probably soldering something',
+                        'rolling dice somewhere',
+                        'making LEDs blink',
+                        'sewing electronics into fur',
+                        'up to no good',
+                        'wishing they had more time for projects',
+                        'definitely not napping',
+                        'thinking about making a blog',
+                        'wondering if they should make a blog',
+                    ],
+                    roleIndex: 0,
                     links: [
-                        { label: 'DnD',     href: 'https://dnd.bluefox.cafe', primary: true },
-                        { label: 'GitHub',  href: 'https://github.com/',  icon: '🐙' },
-                        { label: 'Discord', href: 'https://discord.com/', icon: '💬' },
+                        { label: 'Roll Initiative', href: 'https://dnd.bluefox.cafe', sub: 'Foundry VTT', primary: true, faIcon: 'fa-solid fa-dice-d20' },
+                        { label: 'Files',  href: 'https://files.bluefox.cafe', icon: '📁' },
+                        { label: 'GitHub', href: 'https://github.com/biscuitvixen', icon: '🐙' },
+                    ],
+                    soon: ['Projects', 'Blog', 'Art'],
+                    ops: [
+                        { name: 'Uptime Kuma', icon: '💓', desc: 'Service health', href: 'https://kuma.bluefox.cafe' },
+                        { name: 'Dozzle',      icon: '📜', desc: 'Container logs', href: 'https://logs.bluefox.cafe' },
                     ],
                 };
+            },
+            mounted() {
+                setInterval(() => {
+                    this.roleIndex = (this.roleIndex + 1) % this.roles.length;
+                }, 3200);
             },
             methods: {
                 resolveUrl(url) { return devUrls.resolve(url); },
