@@ -41,6 +41,6 @@ window.devUrls = {
         'https://beastworld.bluefox.cafe':   '/preview/beastworld/',
         'https://files.bluefox.cafe':        '/preview/files/',
     },
-    _isDev: window.location.hostname !== 'bluefox.cafe',
+    _isDev: !window.location.hostname.endsWith('bluefox.cafe'),
     resolve(url) { return this._isDev ? (this._map[url] ?? url) : url; },
 };
