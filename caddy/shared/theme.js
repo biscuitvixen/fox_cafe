@@ -15,8 +15,8 @@ tailwind.config = {
                 eyes:   '#24d962',
             },
             boxShadow: {
-                float: '0 10px 30px -8px rgba(0,0,0,0.55), 0 2px 6px rgba(0,0,0,0.3)',
-                lift:  '0 18px 40px -12px rgba(0,0,0,0.6), 0 4px 10px rgba(73,123,214,0.20)',
+                float: '0 8px 24px -10px rgba(0,0,0,0.55), inset 0 1px 0 rgba(255,255,255,0.04)',
+                lift:  '0 20px 44px -14px rgba(0,0,0,0.65), 0 0 0 1px rgba(73,123,214,0.25), inset 0 1px 0 rgba(255,255,255,0.06)',
             },
             keyframes: {
                 'pulse-dot': {
