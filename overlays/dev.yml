@@ -14,7 +14,7 @@ services:
     container_name: caddy-dev
     restart: "no"
     ports:
-      - "127.0.0.1:8081:80"   # localhost only; 8080 is taken by CrowdSec LAPI
+      - "${CADDY_DEV_BIND_IP}:8081:80"
     volumes:
       - ./caddy/Caddyfile.dev:/etc/caddy/Caddyfile:ro
       - ./caddy/homepage:/srv/homepage:ro
