@@ -31,6 +31,83 @@ tailwind.config = {
     },
 };
 
+// Theme (dark default / light opt-in).
+// The site is authored dark; light is a per-visitor override stored in a
+// cookie scoped to .bluefox.cafe so the choice follows the visitor across
+// every subdomain (localStorage would not - it is per-origin).
+window.bfTheme = {
+    COOKIE: 'bf_theme',
+
+    // Shared across *.bluefox.cafe in prod; host-only in local dev.
+    _cookieDomain() {
+        return location.hostname.endsWith('bluefox.cafe')
+            ? '; domain=.bluefox.cafe'
+            : '';
+    },
+
+    read() {
+        const m = document.cookie.match(/(?:^|;\s*)bf_theme=(light|dark)/);
+        return m ? m[1] : 'dark';
+    },
+
+    write(theme) {
+        document.cookie =
+            `${this.COOKIE}=${theme}; path=/${this._cookieDomain()}` +
+            `; max-age=31536000; SameSite=Lax`;
+    },
+
+    // Apply to <html> so CSS can key off it before first paint.
+    apply(theme) {
+        document.documentElement.setAttribute('data-theme', theme);
+    },
+
+    toggle() {
+        const next = this.read() === 'light' ? 'dark' : 'light';
+        this.write(next);
+        this.apply(next);
+        this._sync(next);
+        return next;
+    },
+
+    // Keep the toggle button's icon/label in step with the active theme.
+    _sync(theme) {
+        const btn = document.getElementById('bf-theme-toggle');
+        if (!btn) return;
+        const light = theme === 'light';
+        btn.setAttribute('aria-pressed', String(light));
+        btn.setAttribute(
+            'aria-label',
+            light ? 'Switch to dark mode' : 'Switch to light mode');
+        btn.innerHTML = light
+            ? '<i class="fa-solid fa-moon"></i>'
+            : '<i class="fa-solid fa-sun"></i>';
+    },
+
+    // Build the fixed top-right toggle once the body exists. Injected from
+    // JS so individual pages need no markup changes - they already load this.
+    _mountToggle() {
+        if (document.getElementById('bf-theme-toggle')) return;
+        const btn = document.createElement('button');
+        btn.id = 'bf-theme-toggle';
+        btn.type = 'button';
+        btn.addEventListener('click', () => this.toggle());
+        document.body.appendChild(btn);
+        this._sync(this.read());
+    },
+
+    init() {
+        // Runs as soon as theme.js is parsed (in <head>, before paint).
+        this.apply(this.read());
+        if (document.readyState === 'loading') {
+            document.addEventListener(
+                'DOMContentLoaded', () => this._mountToggle());
+        } else {
+            this._mountToggle();
+        }
+    },
+};
+window.bfTheme.init();
+
 // Dev URL rewriting - maps production URLs to local dev-server paths.
 // Only active when the page is not served from bluefox.cafe.
 window.devUrls = {

@@ -43,3 +43,106 @@ body {
 /* Icon drop-shadow glows. */
 .glow-eyes  { filter: drop-shadow(0 0 14px rgba(36,217,98,0.55)); }
 .glow-belly { filter: drop-shadow(0 0 14px rgba(73,123,214,0.70)); }
+
+/* ---------------------------------------------------------------------------
+   Light mode.
+
+   The pages are written in a small, consistent Tailwind vocabulary
+   (text-white/NN, bg-sides, ring-white/NN, ...). Rather than rewrite that
+   markup, light mode re-skins those exact utilities. The html[data-theme]
+   prefix raises specificity above Tailwind's own rules, so the CDN's
+   late-injected <style> does not win - no !important needed.
+
+   The belly/eyes accents are kept; they read fine on a light surface.
+--------------------------------------------------------------------------- */
+:root[data-theme="light"] {
+    color-scheme: light;
+}
+
+/* Page: a soft off-white with the same faint blue glow up top. */
+:root[data-theme="light"] body {
+    background:
+        radial-gradient(120% 80% at 50% -10%, rgba(73,123,214,0.10) 0%, transparent 60%),
+        linear-gradient(to bottom, #f7f8fb, #eceef3) fixed;
+    background-attachment: fixed;
+    color: #1e1d28;
+}
+
+/* Hero card: lighten the base so the accent tints still glow at the edges. */
+:root[data-theme="light"] .hero-card {
+    background:
+        linear-gradient(135deg, rgba(73,123,214,0.22) 0%, rgba(36,217,98,0.14) 100%),
+        #ffffff;
+    box-shadow:
+        inset 0 1px 0 rgba(255,255,255,0.6),
+        0 20px 50px -20px rgba(48,47,57,0.30);
+}
+
+/* Surfaces - the card colour and its translucent variant. */
+:root[data-theme="light"] .bg-sides    { background-color: #ffffff; }
+:root[data-theme="light"] .bg-sides\/40 { background-color: rgba(255,255,255,0.6); }
+:root[data-theme="light"] .hover\:bg-sides:hover { background-color: #ffffff; }
+
+/* Hairline rings become a faint dark edge instead of a faint white one. */
+:root[data-theme="light"] .ring-white\/5  { --tw-ring-color: rgba(30,29,40,0.06); }
+:root[data-theme="light"] .ring-white\/10 { --tw-ring-color: rgba(30,29,40,0.10); }
+:root[data-theme="light"] .hover\:ring-white\/10:hover { --tw-ring-color: rgba(30,29,40,0.14); }
+:root[data-theme="light"] .bg-white\/\[0\.03\] { background-color: rgba(30,29,40,0.035); }
+
+/* Ink: full-strength text plus the muted scale used for hierarchy.
+   Same alphas as dark mode so the visual hierarchy is preserved, just
+   inverted onto dark ink. */
+:root[data-theme="light"] .text-white     { color: #1e1d28; }
+:root[data-theme="light"] .text-white\/75 { color: rgba(30,29,40,0.78); }
+:root[data-theme="light"] .text-white\/65 { color: rgba(30,29,40,0.70); }
+:root[data-theme="light"] .text-white\/60 { color: rgba(30,29,40,0.66); }
+:root[data-theme="light"] .text-white\/55 { color: rgba(30,29,40,0.62); }
+:root[data-theme="light"] .text-white\/50 { color: rgba(30,29,40,0.58); }
+:root[data-theme="light"] .text-white\/45 { color: rgba(30,29,40,0.55); }
+:root[data-theme="light"] .text-white\/40 { color: rgba(30,29,40,0.50); }
+:root[data-theme="light"] .text-white\/35 { color: rgba(30,29,40,0.46); }
+:root[data-theme="light"] .text-white\/30 { color: rgba(30,29,40,0.42); }
+:root[data-theme="light"] .text-white\/25 { color: rgba(30,29,40,0.38); }
+:root[data-theme="light"] .hover\:text-white:hover { color: #1e1d28; }
+
+/* Soften the deep, dark-tuned drop shadows on a light page. */
+:root[data-theme="light"] .shadow-float {
+    box-shadow: 0 8px 24px -12px rgba(48,47,57,0.22),
+                inset 0 1px 0 rgba(255,255,255,0.5);
+}
+:root[data-theme="light"] .shadow-lift,
+:root[data-theme="light"] .hover\:shadow-lift:hover {
+    box-shadow: 0 20px 44px -16px rgba(48,47,57,0.28),
+                0 0 0 1px rgba(73,123,214,0.22),
+                inset 0 1px 0 rgba(255,255,255,0.6);
+}
+
+/* ---- Theme toggle (JS-injected, fixed top-right on every page) ---- */
+#bf-theme-toggle {
+    position: fixed;
+    top: 1rem;
+    right: 1rem;
+    z-index: 50;
+    width: 2.5rem;
+    height: 2.5rem;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    border-radius: 9999px;
+    font-size: 0.95rem;
+    cursor: pointer;
+    color: #fff;
+    background: rgba(48,47,57,0.85);
+    border: 1px solid rgba(255,255,255,0.10);
+    box-shadow: 0 8px 24px -10px rgba(0,0,0,0.55);
+    backdrop-filter: blur(6px);
+    transition: transform .15s ease, background .15s ease, color .15s ease;
+}
+#bf-theme-toggle:hover  { transform: translateY(-1px); }
+#bf-theme-toggle:active  { transform: translateY(0); }
+:root[data-theme="light"] #bf-theme-toggle {
+    color: #1e1d28;
+    background: rgba(255,255,255,0.9);
+    border-color: rgba(30,29,40,0.10);
+    box-shadow: 0 8px 24px -12px rgba(48,47,57,0.30);
+}
