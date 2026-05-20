@@ -326,6 +326,31 @@
     encode zstd gzip
 }
 
+# Shared defaults for every reverse_proxy block (Foundry, filebrowser,
+# uptime-kuma, dozzle). Imported INSIDE the reverse_proxy { ... } body.
+#
+#   transport http { dial_timeout 10s }
+#     Fail fast if the upstream container is down. Default is ~30s,
+#     which makes a stopped game / restart cycle feel laggy to clients.
+#
+#   flush_interval -1
+#     Disable Caddy's response buffering. Required for streaming
+#     responses (Server-Sent Events in dozzle's live log view, Socket.io
+#     long-poll fallback in Foundry / uptime-kuma when websockets are
+#     blocked). Has no downside for normal responses.
+#
+# DELIBERATELY NOT SET: read_timeout, write_timeout, idle_timeout. All
+# stay at their default of 0 (unlimited) so Foundry's long-lived
+# websocket sessions and filebrowser's slow large uploads aren't cut
+# mid-flight. Caddy proxies WebSocket upgrades automatically; no extra
+# directive needed.
+(proxy_defaults) {
+    transport http {
+        dial_timeout 10s
+    }
+    flush_interval -1
+}
+
 (gated_admin) {
     import security_headers
     authorize with admin_policy
@@ -409,7 +434,9 @@
 
     handle {
         authorize with {args[1]}
-        reverse_proxy {args[2]}
+        reverse_proxy {args[2]} {
+            import proxy_defaults
+        }
     }
 
     import compression
@@ -557,7 +584,9 @@ kuma.bluefox.cafe {
     import error_pages
     import public_assets
     import compression
-    reverse_proxy uptime-kuma:3001
+    reverse_proxy uptime-kuma:3001 {
+        import proxy_defaults
+    }
 }
 
 logs.bluefox.cafe {
@@ -566,7 +595,9 @@ logs.bluefox.cafe {
     import error_pages
     import public_assets
     import compression
-    reverse_proxy dozzle:8080
+    reverse_proxy dozzle:8080 {
+        import proxy_defaults
+    }
 }
 
 # ─────────────────────────────────────────────────────────────────────
