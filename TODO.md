@@ -122,3 +122,38 @@ Two steps, each can ship independently:
 
 When both are done, the CSP becomes a real "no inline anything" policy
 which meaningfully closes the XSS attack surface on the landing pages.
+
+## Verify crowdsec coverage of `/auth/*`
+
+Caddy has no in-process rate limit on the auth portal. The pinned
+authcrunch image doesn't include `caddy-ratelimit`; adding it would
+mean abandoning the upstream image and building Caddy via `xcaddy`
+with both plugins compiled in — non-trivial ongoing maintenance.
+
+The chosen mitigation is layered:
+
+1. **Discord** rate-limits the OAuth callback at its end. There's no
+   password bruteforce surface on our portal (Discord owns credential
+   validation); the worst an attacker can do is "fill our logs / chew
+   CPU."
+2. **crowdsec** in the compose stack runs `crowdsecurity/caddy` +
+   `crowdsecurity/http-cve` collections against the JSON access log
+   and bans abusive sources at iptables via the firewall bouncer.
+
+Before declaring this done, verify what crowdsec actually catches:
+
+- Run `docker compose exec crowdsec cscli scenarios list` and confirm
+  the loaded scenarios include something like
+  `crowdsecurity/http-bf-wordpress_bf`, `crowdsecurity/http-probing`,
+  and `crowdsecurity/http-crawl-non_statics`. Identify which of these
+  (if any) would actually trigger on a flood of requests to `/auth/*`.
+- Hit `/auth/*` with a burst from a test machine (e.g. ~200 reqs over
+  10s) and check `cscli decisions list` for an active ban. If nothing
+  fires, the layered claim is wishful thinking.
+- If coverage is weak, the options are: (a) write a custom crowdsec
+  scenario tuned for our auth paths, or (b) bite the bullet and build
+  a combined `xcaddy` image with caddy-security + caddy-ratelimit.
+  Prefer (a).
+
+Until verified, the "rate limiting is handled" claim above the auth
+site block in `caddy/Caddyfile` is aspirational, not load-tested.
