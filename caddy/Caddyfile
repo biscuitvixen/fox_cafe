@@ -426,11 +426,23 @@
 #             under /srv/bluefox.cafe/current/)
 #   args[1] = authorization policy name
 #   args[2] = upstream host:port (e.g. foundry-beastworld:30000)
+#
+# Only /shared/* is passed through to the apex Hugo build. We deliberately
+# do NOT import the full (public_assets) here because Foundry serves its
+# own client CSS at /css/* and fonts at /fonts/* - intercepting those
+# paths would strip Foundry's styling and the UI renders as unstyled HTML.
+# Bots fetching preview pages don't render CSS, so losing /css and /fonts
+# for previews is harmless; only the OG image under /shared/og/* matters.
+# See TODO.md "Move public assets to assets.bluefox.cafe" for the proper
+# long-term fix that removes this collision class entirely.
 (gated_proxy_site) {
     import security_headers
     import error_pages
     import preview_bot {args[0]}
-    import public_assets
+    handle_path /shared/* {
+        root * /srv/bluefox.cafe/current/shared
+        file_server
+    }
 
     handle {
         authorize with {args[1]}

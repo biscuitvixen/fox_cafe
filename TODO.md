@@ -24,7 +24,16 @@ is a README warning in the Hugo repo.
 
 Replace with a dedicated `assets.bluefox.cafe` subdomain that owns the
 public asset trees. Gated subdomains stop importing `public_assets` and
-have no auth-bypassing handlers — their roots become pure gated content.
+have no auth-bypassing handlers, their roots become pure gated content.
+
+There's also a concrete collision that motivates this move: Foundry's
+client serves its own CSS at `/css/*` and fonts at `/fonts/*`, which
+overlap with the apex paths the `(public_assets)` snippet handles. As a
+stopgap, `(gated_proxy_site)` only passes `/shared/*` through to the
+apex build and lets `/css/*` and `/fonts/*` flow to the upstream. Any
+future proxied upstream that also exposes `/shared/*` would hit the
+same class of problem. Moving public assets to a dedicated subdomain
+removes the overlap entirely.
 
 Steps:
 
