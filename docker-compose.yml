@@ -128,6 +128,8 @@ services:
       DISCORD_GUILD_DEMIPLANE:  ${DISCORD_GUILD_DEMIPLANE}
       DISCORD_GUILD_EXAMPLE_2:  ${DISCORD_GUILD_EXAMPLE_2}
       DISCORD_ADMIN_USER_ID:    ${DISCORD_ADMIN_USER_ID}
+      AUTH_PORTAL_URL:          ${AUTH_PORTAL_URL}
+      FORBIDDEN_URL:            ${FORBIDDEN_URL}
     networks: [web]
     healthcheck:
       test: ["CMD-SHELL", "wget -q --tries=1 -O /dev/null --server-response http://localhost 2>&1 | grep -q 'HTTP/' || exit 1"]
