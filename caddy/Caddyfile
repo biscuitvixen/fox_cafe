@@ -450,11 +450,12 @@ bluefox.cafe {
     import security_headers
     import static_csp
     import error_pages
-    import public_assets
 
     # Release-symlink layout: deploy.sh writes /srv/bluefox.cafe/releases/<ts>/
     # and flips current via `ln -sfn`. Caddy follows the symlink on the next
-    # request, so publishes are zero-downtime with no reload.
+    # request, so publishes are zero-downtime with no reload. The site-level
+    # root covers /css/*, /fonts/*, /shared/* directly via the catch-all
+    # file_server below, so public_assets isn't imported here.
     root * /srv/bluefox.cafe/current
 
     # Authcrunch redirects here on authorization failure (`set forbidden url`
@@ -501,8 +502,9 @@ bluefox.cafe {
 auth.bluefox.cafe {
     import access_log
     import security_headers
-    import error_pages
-    import public_assets
+    # No error_pages / public_assets: authcrunch renders its own portal UI
+    # (including its own error responses) and doesn't reference our Hugo
+    # build's /css/, /fonts/, or /shared/ trees.
     route /auth* {
         authenticate with foundryauth
     }
