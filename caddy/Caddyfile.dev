@@ -30,22 +30,22 @@
         file_server
     }
 
-    # Error page previews - open in dev (no admin gate needed). Lives
-    # under /previews/ so the whole preview UX is in one namespace
-    # alongside the bot link-preview pages.
-    handle /previews/403 {
+    # Error page previews - open in dev (no admin gate needed). Path
+    # mirrors prod's /admin/error-preview/<code> so dev and prod URLs
+    # match; the bot link-preview pages stay under /previews/<name>/.
+    handle /admin/error-preview/403 {
         error 403
     }
-    handle /previews/404 {
+    handle /admin/error-preview/404 {
         error 404
     }
-    handle /previews/500 {
+    handle /admin/error-preview/500 {
         error 500
     }
-    handle /previews/502 {
+    handle /admin/error-preview/502 {
         error 502
     }
-    handle /previews/503 {
+    handle /admin/error-preview/503 {
         error 503
     }
 
