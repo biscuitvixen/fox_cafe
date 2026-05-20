@@ -317,25 +317,6 @@
     encode zstd gzip
 }
 
-# Currently unused - superseded by (gated_static_site) / (gated_proxy_site)
-# below, which fold these in alongside the bot-preview bypass. Kept
-# commented as a reference for the simplest possible "auth + headers"
-# bundle, in case a future site needs gating without a public preview.
-# (gated_dnd) {
-#     import security_headers
-#     authorize with dnd_policy
-# }
-#
-# (gated_demiplane) {
-#     import security_headers
-#     authorize with demiplane_policy
-# }
-#
-# (gated_example_2) {
-#     import security_headers
-#     authorize with example_2_policy
-# }
-
 (gated_admin) {
     import security_headers
     authorize with admin_policy
