@@ -113,8 +113,8 @@
 
         # DnD landing page - any guild member or admin.
         authorization policy dnd_policy {
-            set auth url https://auth.bluefox.cafe/auth/
-            set forbidden url https://bluefox.cafe/forbidden
+            set auth url {$AUTH_PORTAL_URL}
+            set forbidden url {$FORBIDDEN_URL}
             crypto key verify {$JWT_SHARED_KEY}
             crypto default token name AUTHP_SESSION_ID
 
@@ -139,8 +139,8 @@
         # Currently gates both demiplane and beastworld; split into per-game
         # policies if/when those games need separate guilds.
         authorization policy demiplane_policy {
-            set auth url https://auth.bluefox.cafe/auth/
-            set forbidden url https://bluefox.cafe/forbidden
+            set auth url {$AUTH_PORTAL_URL}
+            set forbidden url {$FORBIDDEN_URL}
             crypto key verify {$JWT_SHARED_KEY}
             crypto default token name AUTHP_SESSION_ID
 
@@ -169,8 +169,8 @@
         # block above, (3) uncommenting the user_group_filters entry, and
         # (4) importing gated_example_2 on the relevant site block.
         authorization policy example_2_policy {
-            set auth url https://auth.bluefox.cafe/auth/
-            set forbidden url https://bluefox.cafe/forbidden
+            set auth url {$AUTH_PORTAL_URL}
+            set forbidden url {$FORBIDDEN_URL}
             crypto key verify {$JWT_SHARED_KEY}
             crypto default token name AUTHP_SESSION_ID
 
@@ -193,8 +193,8 @@
 
         # Admin-only - uptime, logs, anything ops.
         authorization policy admin_policy {
-            set auth url https://auth.bluefox.cafe/auth/
-            set forbidden url https://bluefox.cafe/forbidden
+            set auth url {$AUTH_PORTAL_URL}
+            set forbidden url {$FORBIDDEN_URL}
             crypto key verify {$JWT_SHARED_KEY}
             crypto default token name AUTHP_SESSION_ID
 
@@ -216,26 +216,50 @@
 # Reusable snippets - keep per-site config DRY
 # ─────────────────────────────────────────────────────────────────────
 
-# Serves /srv/shared at /shared/*. Imported by every site that renders
-# HTML referencing /shared/theme.css or /shared/theme.js - both directly
-# on page load and indirectly via error pages rendered at the subdomain.
-(shared_assets) {
+# Public passthroughs for the apex-level shared trees that every themed
+# page references with root-relative URLs (/css/<bundle>.css, /fonts/*,
+# /shared/og/*). Imported by each gated site so these requests resolve
+# from the apex build without ever touching the per-site root - which
+# keeps gated subdomains physically unable to read each other's content
+# (see access-control note on gated_static_site).
+#
+# handle_path strips the matched prefix before applying root, and runs
+# before the gated handle{} block, so these assets bypass authorize.
+# That's intentional: CSS, fonts, and OG images are public by design.
+(public_assets) {
     handle_path /shared/* {
-        root * /srv/shared
+        root * /srv/bluefox.cafe/current/shared
+        file_server
+    }
+    handle_path /css/* {
+        root * /srv/bluefox.cafe/current/css
+        file_server
+    }
+    handle_path /fonts/* {
+        root * /srv/bluefox.cafe/current/fonts
         file_server
     }
 }
 
-# Strict CSP for the static landing pages (homepage, dnd). Blocks any
-# resource not loaded from one of the explicit origins below - even if an
-# attacker manages to inject HTML, they can't pull a payload from a
-# random domain.
+# Strict CSP for the static landing pages (homepage, dnd, previews,
+# errors). Blocks any resource not loaded from one of the explicit
+# origins below - even if an attacker manages to inject HTML, they can't
+# pull a payload from a random domain.
 #
-# `'unsafe-inline'` on script-src/style-src is required because the pages
-# use inline <script> blocks for Vue templating and Tailwind's runtime
-# injects inline styles. Removing this would mean refactoring to nonces
-# or external files; out of scope for now. CSP still meaningfully
-# restricts the loadable origins despite the inline allowance.
+# `'unsafe-inline'` on script-src is required by the homepage rotator
+# in layouts/index.html, which is parameterized by Hugo template vars
+# ({{ .Params.roles | jsonify | safeJS }}) and so has to ship inline.
+# `'unsafe-inline'` on style-src covers the static rotator <style>
+# block and a couple of inline style="..." attributes on /dnd/. Both
+# are removable - see TODO.md "Tighten CSP" - but require Hugo-side
+# refactors first.
+#
+# CDN allowlist entries (cdn.tailwindcss.com, unpkg.com,
+# cdnjs.cloudflare.com) were dropped: the migration from the
+# hand-written HTML to Hugo Pipes self-hosted everything (Tailwind v4
+# standalone runs at build time and produces a fingerprinted CSS file,
+# Font Awesome is subset + self-hosted). Nothing references those CDNs
+# anymore.
 #
 # Do NOT import this on Foundry sites - Foundry's client uses inline
 # scripts, dynamic imports, and module-specific resources we don't
@@ -244,9 +268,9 @@
 
 (static_csp) {
     header Content-Security-Policy "default-src 'self'; \
-        script-src 'self' 'unsafe-inline' https://cdn.tailwindcss.com https://unpkg.com; \
-        style-src  'self' 'unsafe-inline' https://cdnjs.cloudflare.com; \
-        font-src   'self' https://cdnjs.cloudflare.com data:; \
+        script-src 'self' 'unsafe-inline'; \
+        style-src  'self' 'unsafe-inline'; \
+        font-src   'self' data:; \
         img-src    'self' data: https:; \
         connect-src 'self'; \
         frame-ancestors 'none'; \
@@ -293,24 +317,39 @@
     }
 }
 
-# Currently unused - superseded by (gated_static_site) / (gated_proxy_site)
-# below, which fold these in alongside the bot-preview bypass. Kept
-# commented as a reference for the simplest possible "auth + headers"
-# bundle, in case a future site needs gating without a public preview.
-# (gated_dnd) {
-#     import security_headers
-#     authorize with dnd_policy
-# }
+# Response compression. zstd preferred where the client supports it
+# (better ratio + faster decode), gzip as the universal fallback.
+# Imported by every site block so we don't have to remember per site;
+# Caddy skips compression for already-compressed responses (images,
+# fonts in woff2, etc.) automatically.
+(compression) {
+    encode zstd gzip
+}
+
+# Shared defaults for every reverse_proxy block (Foundry, filebrowser,
+# uptime-kuma, dozzle). Imported INSIDE the reverse_proxy { ... } body.
 #
-# (gated_demiplane) {
-#     import security_headers
-#     authorize with demiplane_policy
-# }
+#   transport http { dial_timeout 10s }
+#     Fail fast if the upstream container is down. Default is ~30s,
+#     which makes a stopped game / restart cycle feel laggy to clients.
 #
-# (gated_example_2) {
-#     import security_headers
-#     authorize with example_2_policy
-# }
+#   flush_interval -1
+#     Disable Caddy's response buffering. Required for streaming
+#     responses (Server-Sent Events in dozzle's live log view, Socket.io
+#     long-poll fallback in Foundry / uptime-kuma when websockets are
+#     blocked). Has no downside for normal responses.
+#
+# DELIBERATELY NOT SET: read_timeout, write_timeout, idle_timeout. All
+# stay at their default of 0 (unlimited) so Foundry's long-lived
+# websocket sessions and filebrowser's slow large uploads aren't cut
+# mid-flight. Caddy proxies WebSocket upgrades automatically; no extra
+# directive needed.
+(proxy_defaults) {
+    transport http {
+        dial_timeout 10s
+    }
+    flush_interval -1
+}
 
 (gated_admin) {
     import security_headers
@@ -323,18 +362,25 @@
 # meta tags instead of bouncing it to the OAuth wall. Without this,
 # every shared link in chat shows the auth page as its preview.
 #
-# Used as: `import preview_bot <name>` where caddy/previews/<name>/
-# contains the index.html. Must be imported BEFORE the catchall
-# `handle { authorize ... }` so its `handle @preview_bot` matches first.
+# Used as: `import preview_bot <name>` where the Hugo build emits
+# previews/<name>/index.html under /srv/bluefox.cafe/current/. Must be
+# imported BEFORE the catchall `handle { authorize ... }` so its
+# `handle @preview_bot` matches first.
 #
-# IMPORTANT: User-Agent is trivially spoofable, so the preview directory
-# must contain ONLY content safe to expose publicly (title, blurb,
+# Rooted at the preview subdir and rewriting every bot request to
+# index.html, so the bot gets exactly one page no matter what path it
+# probes. The page's root-relative /css/*, /fonts/*, /shared/* refs are
+# served by (public_assets), which the gated site imports separately
+# and which matches before this snippet's handle{} block.
+#
+# IMPORTANT: User-Agent is trivially spoofable, so the previews/<name>/
+# tree must contain ONLY content safe to expose publicly (title, blurb,
 # cover image). Never put real game data, file listings, or anything
 # member-only in there.
 (preview_bot) {
     @preview_bot header_regexp User-Agent (?i)(Telegrambot|Discordbot|Twitterbot|Slackbot|facebookexternalhit|LinkedInBot|WhatsApp|SkypeUriPreview|Embedly|redditbot|Applebot|Mastodon|Pleroma|Iframely|Bluesky|vkShare|Synapse)
     handle @preview_bot {
-        root * /srv/previews/{args[0]}
+        root * /srv/bluefox.cafe/current/previews/{args[0]}
         rewrite * /index.html
         file_server
         header Cache-Control "public, max-age=300"
@@ -345,22 +391,30 @@
 # strict CSP, themed error pages, bot-preview bypass, and the auth gate
 # itself. Each call collapses to one `import` line in the site block.
 #
-#   args[0] = name (used for both /srv/previews/<name> and /srv/<name>)
+#   args[0] = name (the Hugo build emits content at /<name>/ and a bot
+#             preview at /previews/<name>/ under /srv/bluefox.cafe/current/)
 #   args[1] = authorization policy name (e.g. dnd_policy)
+#
+# Rooted at the site's own /<name>/ subdir so the gated handler is
+# physically incapable of reading another gated subdomain's tree even
+# if the request URI tries to escape (e.g. /demiplane/index.html from
+# dnd.bluefox.cafe just 404s). Shared assets that the page references
+# with root-relative URLs (/css/*, /fonts/*, /shared/*) come from
+# (public_assets), whose handle_path entries match before this handle{}.
 (gated_static_site) {
     import security_headers
     import static_csp
     import error_pages
     import preview_bot {args[0]}
-    import shared_assets
+    import public_assets
 
     handle {
         authorize with {args[1]}
-        root * /srv/{args[0]}
+        root * /srv/bluefox.cafe/current/{args[0]}
         file_server
     }
 
-    encode zstd gzip
+    import compression
 }
 
 # Full bundle for a gated reverse-proxy site (Foundry, filebrowser, etc).
@@ -368,40 +422,48 @@
 # - Foundry's client and filebrowser both rely on inline scripts and
 # dynamic resources that a strict CSP would break.
 #
-#   args[0] = preview directory name (under /srv/previews/)
+#   args[0] = preview directory name (Hugo build emits previews/<name>/
+#             under /srv/bluefox.cafe/current/)
 #   args[1] = authorization policy name
 #   args[2] = upstream host:port (e.g. foundry-beastworld:30000)
 (gated_proxy_site) {
     import security_headers
     import error_pages
     import preview_bot {args[0]}
-    import shared_assets
+    import public_assets
 
     handle {
         authorize with {args[1]}
-        reverse_proxy {args[2]}
+        reverse_proxy {args[2]} {
+            import proxy_defaults
+        }
     }
 
-    encode zstd gzip
+    import compression
 }
 
-# Themed error pages for 401/403/404. Note: caddy-security returns 401
-# (not 403) when an authenticated user lacks the required role - a quirk
-# of the upstream module - so we map both to 403.html.
+# Themed error pages served from the Hugo build under
+# /srv/bluefox.cafe/current/errors/<code>/ (pretty URLs - the rewrite
+# targets the directory and file_server resolves its index.html).
+# Note: caddy-security returns 401 (not 403) when an authenticated user
+# lacks the required role - a quirk of the upstream module - so we map
+# both to the 403 page. Root is set inside each handle_errors block so
+# this works for both static and reverse_proxy site blocks (the latter
+# don't set a site-level root).
 (error_pages) {
     handle_errors 401 403 {
-        root * /srv/errors
-        rewrite * /403.html
+        root * /srv/bluefox.cafe/current
+        rewrite * /errors/403/
         file_server
     }
     handle_errors 404 {
-        root * /srv/errors
-        rewrite * /404.html
+        root * /srv/bluefox.cafe/current
+        rewrite * /errors/404/
         file_server
     }
     handle_errors 500 502 503 504 {
-        root * /srv/errors
-        rewrite * /5xx.html
+        root * /srv/bluefox.cafe/current
+        rewrite * /errors/5xx/
         file_server
     }
 }
@@ -415,14 +477,12 @@ bluefox.cafe {
     import static_csp
     import error_pages
 
-    # Shared theme assets (CSS/JS) used by every *.bluefox.cafe page.
-    # Served publicly so gated subdomains can <link>/<script> them without
-    # tripping the auth wall on each asset request.
-    handle_path /shared/* {
-        root * /srv/shared
-        file_server
-        header Cache-Control "public, max-age=3600"
-    }
+    # Release-symlink layout: deploy.sh writes /srv/bluefox.cafe/releases/<ts>/
+    # and flips current via `ln -sfn`. Caddy follows the symlink on the next
+    # request, so publishes are zero-downtime with no reload. The site-level
+    # root covers /css/*, /fonts/*, /shared/* directly via the catch-all
+    # file_server below, so public_assets isn't imported here.
+    root * /srv/bluefox.cafe/current
 
     # Authcrunch redirects here on authorization failure (`set forbidden url`
     # in each policy). We raise a real 403 so handle_errors serves the themed
@@ -434,33 +494,36 @@ bluefox.cafe {
     # Admin-only preview routes for the themed error pages. Useful for
     # iterating on the design without having to log out / break ACLs to
     # trigger a real denial. Non-admins are bounced to /forbidden.
-    handle /preview/403 {
+    #
+    # Path is /admin/error-preview/<code> (not /previews/<code>) so it
+    # doesn't collide namespace-wise with the bot link-preview tree at
+    # /previews/<name>/.
+    handle /admin/error-preview/403 {
         authorize with admin_policy
         error 403
     }
-    handle /preview/404 {
+    handle /admin/error-preview/404 {
         authorize with admin_policy
         error 404
     }
-    handle /preview/500 {
+    handle /admin/error-preview/500 {
         authorize with admin_policy
         error 500
     }
-    handle /preview/502 {
+    handle /admin/error-preview/502 {
         authorize with admin_policy
         error 502
     }
-    handle /preview/503 {
+    handle /admin/error-preview/503 {
         authorize with admin_policy
         error 503
     }
 
     handle {
-        root * /srv/homepage
         file_server
     }
 
-    encode zstd gzip
+    import compression
 }
 
 # ─────────────────────────────────────────────────────────────────────
@@ -469,8 +532,10 @@ bluefox.cafe {
 auth.bluefox.cafe {
     import access_log
     import security_headers
-    import error_pages
-    import shared_assets
+    import compression
+    # No error_pages / public_assets: authcrunch renders its own portal UI
+    # (including its own error responses) and doesn't reference our Hugo
+    # build's /css/, /fonts/, or /shared/ trees.
     route /auth* {
         authenticate with foundryauth
     }
@@ -493,7 +558,7 @@ dnd.bluefox.cafe {
 # test.bluefox.cafe {
 #     import gated_admin
 #     reverse_proxy foundry-test:30000
-#     encode zstd gzip
+#     import compression
 # }
 
 demiplane.bluefox.cafe {
@@ -517,16 +582,22 @@ kuma.bluefox.cafe {
     import access_log
     import gated_admin
     import error_pages
-    import shared_assets
-    reverse_proxy uptime-kuma:3001
+    import public_assets
+    import compression
+    reverse_proxy uptime-kuma:3001 {
+        import proxy_defaults
+    }
 }
 
 logs.bluefox.cafe {
     import access_log
     import gated_admin
     import error_pages
-    import shared_assets
-    reverse_proxy dozzle:8080
+    import public_assets
+    import compression
+    reverse_proxy dozzle:8080 {
+        import proxy_defaults
+    }
 }
 
 # ─────────────────────────────────────────────────────────────────────
@@ -551,6 +622,7 @@ files.bluefox.cafe {
     import access_log
     import security_headers
     import error_pages
-    import shared_assets
+    import public_assets
+    import compression
     error 404
 }

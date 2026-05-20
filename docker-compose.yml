@@ -110,11 +110,9 @@ services:
     cap_add: [NET_BIND_SERVICE, CHOWN, FOWNER, DAC_OVERRIDE, SETUID, SETGID]
     volumes:
       - ./caddy/Caddyfile:/etc/caddy/Caddyfile:ro
-      - ./caddy/homepage:/srv/homepage:ro     # public landing page
-      - ./caddy/dnd:/srv/dnd:ro               # gated dnd landing page
-      - ./caddy/shared:/srv/shared:ro         # shared theme assets, served at bluefox.cafe/shared/*
-      - ./caddy/errors:/srv/errors:ro         # custom 403/404 error pages
-      - ./caddy/previews:/srv/previews:ro     # public link-preview pages served to crawler bots
+      # All site content (apex, dnd, errors, previews, shared assets) comes
+      # from the release-symlink layout published by ~/bluefox.cafe/deploy.sh.
+      - /srv/bluefox.cafe:/srv/bluefox.cafe:ro
       - ./data/caddy/data:/data        # ACME certs + state. BACK THIS UP.
       - ./data/caddy/config:/config
       # JSON access logs, tailed read-only by crowdsec for HTTP scenarios.
@@ -130,6 +128,8 @@ services:
       DISCORD_GUILD_DEMIPLANE:  ${DISCORD_GUILD_DEMIPLANE}
       DISCORD_GUILD_EXAMPLE_2:  ${DISCORD_GUILD_EXAMPLE_2}
       DISCORD_ADMIN_USER_ID:    ${DISCORD_ADMIN_USER_ID}
+      AUTH_PORTAL_URL:          ${AUTH_PORTAL_URL}
+      FORBIDDEN_URL:            ${FORBIDDEN_URL}
     networks: [web]
     healthcheck:
       test: ["CMD-SHELL", "wget -q --tries=1 -O /dev/null --server-response http://localhost 2>&1 | grep -q 'HTTP/' || exit 1"]

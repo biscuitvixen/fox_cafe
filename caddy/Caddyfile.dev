@@ -4,85 +4,65 @@
 }
 
 :80 {
+    # Whole site served from the release-symlink layout published by
+    # ~/bluefox.cafe/deploy.sh. Bot preview pages (/previews/<name>/) and
+    # the apex homepage all live in this tree, so plain file_server covers
+    # them.
+    root * /srv/bluefox.cafe/current
+
+    # Error pages emitted by the Hugo build as pretty URLs. We re-declare
+    # root here because handle_errors runs in a separate phase that doesn't
+    # inherit the site-level root in older Caddy versions; safer to be
+    # explicit than to debug a silent 404 later.
     handle_errors 401 403 {
-        root * /srv/errors
-        rewrite * /403.html
+        root * /srv/bluefox.cafe/current
+        rewrite * /errors/403/
         file_server
     }
     handle_errors 404 {
-        root * /srv/errors
-        rewrite * /404.html
+        root * /srv/bluefox.cafe/current
+        rewrite * /errors/404/
         file_server
     }
     handle_errors 500 502 503 504 {
-        root * /srv/errors
-        rewrite * /5xx.html
+        root * /srv/bluefox.cafe/current
+        rewrite * /errors/5xx/
         file_server
     }
 
-    # Shared theme assets - served at /shared/* so root-relative references
-    # in the HTML resolve correctly against this dev server.
-    handle_path /shared/* {
-        root * /srv/shared
-        file_server
-    }
-
-    # Bot link-preview pages, exposed at predictable dev paths.
-    # Note: preview pages still reference https://bluefox.cafe/shared/... (absolute
-    # URL) because in prod they're served from *.bluefox.cafe subdomains where a
-    # root-relative /shared/ wouldn't resolve. Test theme changes via the homepage
-    # or dnd landing instead.
-    handle_path /preview/beastworld/* {
-        root * /srv/previews/beastworld
-        file_server
-    }
-    handle_path /preview/demiplane/* {
-        root * /srv/previews/demiplane
-        file_server
-    }
-    handle_path /preview/dnd/* {
-        root * /srv/previews/dnd
-        file_server
-    }
-    handle_path /preview/files/* {
-        root * /srv/previews/files
-        file_server
-    }
-
-    # Error page previews - open in dev (no admin gate needed).
-    handle /preview/403 {
+    # Error page previews - open in dev (no admin gate needed). Path
+    # mirrors prod's /admin/error-preview/<code> so dev and prod URLs
+    # match; the bot link-preview pages stay under /previews/<name>/.
+    handle /admin/error-preview/403 {
         error 403
     }
-    handle /preview/404 {
+    handle /admin/error-preview/404 {
         error 404
     }
-    handle /preview/500 {
+    handle /admin/error-preview/500 {
         error 500
     }
-    handle /preview/502 {
+    handle /admin/error-preview/502 {
         error 502
     }
-    handle /preview/503 {
+    handle /admin/error-preview/503 {
         error 503
     }
 
     # /forbidden mirrors the prod auth redirect target.
     handle /forbidden {
-        root * /srv/errors
-        rewrite * /403.html
-        file_server
+        error 403
     }
 
     # DnD landing page (gated in prod, open in dev).
     handle /dnd* {
-        root * /srv/dnd
-        rewrite * /index.html
+        rewrite * /dnd/
         file_server
     }
 
-    # Homepage - catch-all.
+    # Everything else (apex index, css/, fonts/, shared/, previews/<name>/)
+    # resolves straight off the site root.
     handle {
-        root * /srv/homepage
         file_server
     }
 
