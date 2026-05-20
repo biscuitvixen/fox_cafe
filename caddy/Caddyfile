@@ -308,6 +308,15 @@
     }
 }
 
+# Response compression. zstd preferred where the client supports it
+# (better ratio + faster decode), gzip as the universal fallback.
+# Imported by every site block so we don't have to remember per site;
+# Caddy skips compression for already-compressed responses (images,
+# fonts in woff2, etc.) automatically.
+(compression) {
+    encode zstd gzip
+}
+
 # Currently unused - superseded by (gated_static_site) / (gated_proxy_site)
 # below, which fold these in alongside the bot-preview bypass. Kept
 # commented as a reference for the simplest possible "auth + headers"
@@ -390,7 +399,7 @@
         file_server
     }
 
-    encode zstd gzip
+    import compression
 }
 
 # Full bundle for a gated reverse-proxy site (Foundry, filebrowser, etc).
@@ -413,7 +422,7 @@
         reverse_proxy {args[2]}
     }
 
-    encode zstd gzip
+    import compression
 }
 
 # Themed error pages served from the Hugo build under
@@ -493,7 +502,7 @@ bluefox.cafe {
         file_server
     }
 
-    encode zstd gzip
+    import compression
 }
 
 # ─────────────────────────────────────────────────────────────────────
@@ -502,6 +511,7 @@ bluefox.cafe {
 auth.bluefox.cafe {
     import access_log
     import security_headers
+    import compression
     # No error_pages / public_assets: authcrunch renders its own portal UI
     # (including its own error responses) and doesn't reference our Hugo
     # build's /css/, /fonts/, or /shared/ trees.
@@ -527,7 +537,7 @@ dnd.bluefox.cafe {
 # test.bluefox.cafe {
 #     import gated_admin
 #     reverse_proxy foundry-test:30000
-#     encode zstd gzip
+#     import compression
 # }
 
 demiplane.bluefox.cafe {
@@ -552,6 +562,7 @@ kuma.bluefox.cafe {
     import gated_admin
     import error_pages
     import public_assets
+    import compression
     reverse_proxy uptime-kuma:3001
 }
 
@@ -560,6 +571,7 @@ logs.bluefox.cafe {
     import gated_admin
     import error_pages
     import public_assets
+    import compression
     reverse_proxy dozzle:8080
 }
 
@@ -586,5 +598,6 @@ files.bluefox.cafe {
     import security_headers
     import error_pages
     import public_assets
+    import compression
     error 404
 }
