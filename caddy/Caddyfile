@@ -241,16 +241,25 @@
     }
 }
 
-# Strict CSP for the static landing pages (homepage, dnd). Blocks any
-# resource not loaded from one of the explicit origins below - even if an
-# attacker manages to inject HTML, they can't pull a payload from a
-# random domain.
+# Strict CSP for the static landing pages (homepage, dnd, previews,
+# errors). Blocks any resource not loaded from one of the explicit
+# origins below - even if an attacker manages to inject HTML, they can't
+# pull a payload from a random domain.
 #
-# `'unsafe-inline'` on script-src/style-src is required because the pages
-# use inline <script> blocks for Vue templating and Tailwind's runtime
-# injects inline styles. Removing this would mean refactoring to nonces
-# or external files; out of scope for now. CSP still meaningfully
-# restricts the loadable origins despite the inline allowance.
+# `'unsafe-inline'` on script-src is required by the homepage rotator
+# in layouts/index.html, which is parameterized by Hugo template vars
+# ({{ .Params.roles | jsonify | safeJS }}) and so has to ship inline.
+# `'unsafe-inline'` on style-src covers the static rotator <style>
+# block and a couple of inline style="..." attributes on /dnd/. Both
+# are removable - see TODO.md "Tighten CSP" - but require Hugo-side
+# refactors first.
+#
+# CDN allowlist entries (cdn.tailwindcss.com, unpkg.com,
+# cdnjs.cloudflare.com) were dropped: the migration from the
+# hand-written HTML to Hugo Pipes self-hosted everything (Tailwind v4
+# standalone runs at build time and produces a fingerprinted CSS file,
+# Font Awesome is subset + self-hosted). Nothing references those CDNs
+# anymore.
 #
 # Do NOT import this on Foundry sites - Foundry's client uses inline
 # scripts, dynamic imports, and module-specific resources we don't
@@ -259,9 +268,9 @@
 
 (static_csp) {
     header Content-Security-Policy "default-src 'self'; \
-        script-src 'self' 'unsafe-inline' https://cdn.tailwindcss.com https://unpkg.com; \
-        style-src  'self' 'unsafe-inline' https://cdnjs.cloudflare.com; \
-        font-src   'self' https://cdnjs.cloudflare.com data:; \
+        script-src 'self' 'unsafe-inline'; \
+        style-src  'self' 'unsafe-inline'; \
+        font-src   'self' data:; \
         img-src    'self' data: https:; \
         connect-src 'self'; \
         frame-ancestors 'none'; \
