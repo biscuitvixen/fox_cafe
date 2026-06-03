@@ -9,9 +9,13 @@
     # site too. Token needs Zone:DNS:Edit scoped to bluefox.cafe.
     acme_dns cloudflare {$CLOUDFLARE_API_TOKEN}
 
-    # Disable the admin API on its default port. We don't manage Caddy via API,
-    # and leaving this open inside the container is mild attack surface.
-    admin off
+    # Admin API bound inside the container on all interfaces; the host-side
+    # port publish in overlays/prod.yml restricts reachability to the
+    # tailnet IP only (100.78.234.19:2019). Used for /debug/pprof to
+    # investigate the goroutine/thread leak that exhausts the pids cgroup
+    # after a few days. Anyone who can reach this port can fully reconfigure
+    # Caddy, so never publish it on 0.0.0.0.
+    admin 0.0.0.0:2019
 
     # ─────────────────────────────────────────────────────────────────
     # caddy-security: identity provider, auth portal, authorization policies

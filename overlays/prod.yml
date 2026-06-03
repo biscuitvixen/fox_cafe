@@ -6,3 +6,7 @@ services:
       - "80:80"        # ACME HTTP-01 challenges + redirect to HTTPS
       - "443:443"      # HTTPS
       - "443:443/udp"  # HTTP/3 (QUIC) - better latency for transatlantic players
+      # Admin API + pprof, tailnet-only. Bound to the atlas tailscale IP so
+      # nothing on the public internet (or the Hetzner LAN) can reach it.
+      # The admin API can fully reconfigure Caddy - do not move this to 0.0.0.0.
+      - "100.78.234.19:2019:2019"
