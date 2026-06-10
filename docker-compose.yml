@@ -85,6 +85,16 @@ services:
     container_name: caddy
     restart: unless-stopped
     logging: *default-logging
+    # Run an init (tini) as PID 1 so orphaned children get reaped. Caddy as
+    # PID 1 does not reap, so every healthcheck (wget follows Caddy's HTTP->HTTPS
+    # 308 to the TLS leg) leaves an orphaned BusyBox `ssl_client` zombie. Without
+    # a reaper these pile up ~1 per 30s and exhaust the pids cgroup (~9273) after
+    # ~3 days, after which nothing in the container can fork - the healthcheck's
+    # own `sh -c` fails and the container is marked unhealthy while caddy itself
+    # keeps serving. tini reaps the orphans so pids.current stays flat (~11).
+    # (BusyBox wget in this image has no --max-redirect, so we can't stop the
+    # redirect being followed at the source; reaping is the fix.)
+    init: true
     # Relative CPU weight (default is 1024). Only matters under contention:
     # if Foundry pegs a CPU during a busy session, Caddy still gets twice
     # the slice, so TLS handshakes and auth redirects stay snappy. No effect
