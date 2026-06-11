@@ -234,7 +234,7 @@ services:
   # with `Scope` set to the game subfolder they're allowed to touch.
   filebrowser:
     <<: *hardening
-    image: filebrowser/filebrowser:v2.63.3
+    image: filebrowser/filebrowser:v2.63.14
     container_name: filebrowser
     restart: unless-stopped
     logging: *default-logging
