@@ -42,7 +42,7 @@ x-hardening: &hardening
 # UID on the VPS - bind-mounted data ends up owned by the host user.
 x-foundry-base: &foundry-base
   <<: *hardening
-  image: felddy/foundryvtt:14.363
+  image: felddy/foundryvtt:14.364
   restart: unless-stopped
   init: true
   # Memory: hard cap at 4g, soft floor at 512m (kernel keeps ≥512m resident
