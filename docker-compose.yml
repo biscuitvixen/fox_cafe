@@ -268,6 +268,7 @@ services:
     image: tecnativa/docker-socket-proxy:v0.4.2
     container_name: docker-socket-proxy
     restart: unless-stopped
+    init: true
     logging: *default-logging
     mem_limit: 64m
     mem_reservation: 16m
@@ -320,6 +321,7 @@ services:
     image: amir20/dozzle:v10.6.4
     container_name: dozzle
     restart: unless-stopped
+    init: true
     logging: *default-logging
     mem_limit: 128m
     mem_reservation: 32m
@@ -373,6 +375,7 @@ services:
     image: crowdsecurity/crowdsec:v1.7.8
     container_name: crowdsec
     restart: unless-stopped
+    init: true
     logging: *default-logging
     mem_limit: 512m
     mem_reservation: 64m
