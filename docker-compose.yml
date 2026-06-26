@@ -179,6 +179,9 @@ services:
       FOUNDRY_HOSTNAME:    demiplane.bluefox.cafe
     volumes:
       - ./data/foundry-demiplane:/data
+      # Shared asset library - single copy on disk, read-only here so a game
+      # can reference but never modify it. Writes go through filebrowser.
+      - ./data/shared-assets:/data/Data/shared-assets:ro
 
   foundry-beastworld:
     <<: *foundry-base
@@ -192,6 +195,8 @@ services:
       FOUNDRY_HOSTNAME:    beastworld.bluefox.cafe
     volumes:
       - ./data/foundry-beastworld:/data
+      # Shared asset library - see foundry-demiplane above.
+      - ./data/shared-assets:/data/Data/shared-assets:ro
 
   # To add a game: copy a block above, swap the suffix, add matching
   # FOUNDRY_*_<NAME> vars to .env, add the Caddyfile site block, and add
@@ -251,6 +256,10 @@ services:
       - ./data/filebrowser/settings.json:/config/settings.json:ro
       - ./data/foundry-demiplane/Data:/srv/demiplane
       - ./data/foundry-beastworld/Data:/srv/beastworld
+      # Shared asset library - read-write here: filebrowser is the one
+      # controlled door for people to add/remove shared assets. The Foundry
+      # containers mount this same dir read-only.
+      - ./data/shared-assets:/srv/shared-assets
     networks: [web]
 
   # Docker socket proxy - sits between Dozzle and /var/run/docker.sock and
