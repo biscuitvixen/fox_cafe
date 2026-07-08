@@ -81,7 +81,7 @@ services:
     # (v1.0.41, v1.0.40, ...) - no rolling `v1` tag last we checked. To
     # bump: read the authcrunch release notes, change the tag below, then
     # `docker compose pull caddy && docker compose up -d caddy`.
-    image: ghcr.io/authcrunch/authcrunch:v1.0.41
+    image: ghcr.io/authcrunch/authcrunch:v1.0.43
     container_name: caddy
     restart: unless-stopped
     logging: *default-logging
@@ -207,7 +207,7 @@ services:
   # ─────────────────────────────────────────────────────────────────────
   uptime-kuma:
     <<: *hardening
-    image: louislam/uptime-kuma:2.3.2
+    image: louislam/uptime-kuma:2.4.0
     container_name: uptime-kuma
     restart: unless-stopped
     logging: *default-logging
@@ -239,7 +239,7 @@ services:
   # with `Scope` set to the game subfolder they're allowed to touch.
   filebrowser:
     <<: *hardening
-    image: filebrowser/filebrowser:v2.63.14
+    image: filebrowser/filebrowser:v2.63.18
     container_name: filebrowser
     restart: unless-stopped
     logging: *default-logging
