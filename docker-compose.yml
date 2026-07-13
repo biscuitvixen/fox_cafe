@@ -408,6 +408,15 @@ services:
     volumes:
       - diun_data:/data
     networks: [web, socket_proxy]
+    # Diun has no listening port and no health subcommand, so liveness is
+    # simply "is the serve process alive". pgrep -x matches the process name
+    # exactly (docker-init is PID 1; the diun serve child is what matters).
+    healthcheck:
+      test: ["CMD", "pgrep", "-x", "diun"]
+      interval: 30s
+      timeout: 5s
+      retries: 3
+      start_period: 20s
 
   # ─────────────────────────────────────────────────────────────────────
   # CrowdSec - log analysis + Local API
