@@ -293,13 +293,16 @@ services:
       LOGS:       "1"
       INFO:       "1"
       VERSION:    "1"
+      # IMAGES: read-only GET on /images/* so Diun can inspect local image
+      # digests to diff against the registry. Stays GET-only because POST=0
+      # below. Shared with Dozzle, which simply never calls this endpoint.
+      IMAGES:     "1"
       # Everything below is off by default in the upstream image; listed
       # explicitly so future-you knows they were considered, not forgotten.
       POST:       "0"
       EXEC:       "0"
       BUILD:      "0"
       COMMIT:     "0"
-      IMAGES:     "0"
       VOLUMES:    "0"
       NETWORKS:   "0"
       SERVICES:   "0"
@@ -358,11 +361,53 @@ services:
       start_period: 10s
 
   # ─────────────────────────────────────────────────────────────────────
-  # Updates are handled manually for stability.
-  # Workflow: `docker compose pull <svc> && docker compose up -d <svc>`.
-  # Subscribe to upstream release feeds (Foundry, authcrunch, filebrowser,
-  # dozzle, kuma) so you know when patches land.
+  # Diun - Docker Image Update Notifier
   # ─────────────────────────────────────────────────────────────────────
+  # Updates are still applied manually for stability:
+  #   docker compose pull <svc> && docker compose up -d <svc>
+  # Diun replaces the old "subscribe to upstream release feeds" chore: it
+  # watches every running container's image against its registry and pings a
+  # Discord channel webhook when a newer digest/tag lands. It never pulls or
+  # restarts anything itself. State lives in the diun_data volume so each new
+  # version is announced exactly once.
+  #
+  # Reaches the Docker API through the shared socket-proxy (read-only; needs
+  # IMAGES=1 there to read local image digests). Reaches registries over the
+  # `web` network - the socket_proxy net is internal, so it can't egress.
+  #
+  # The Discord webhook is NOT the auth OAuth app: it's a standalone channel
+  # webhook URL (Channel ▸ Integrations ▸ Webhooks), unrelated to
+  # DISCORD_CLIENT_ID/SECRET. Revoke it independently without touching auth.
+  diun:
+    <<: *hardening
+    image: crazymax/diun:4.29.0
+    container_name: diun
+    restart: unless-stopped
+    init: true
+    logging: *default-logging
+    mem_limit: 128m
+    mem_reservation: 32m
+    oom_score_adj: 500
+    read_only: true
+    tmpfs:
+      - /tmp:size=16m,mode=1777
+    depends_on:
+      docker-socket-proxy:
+        condition: service_healthy
+    environment:
+      TZ: Europe/London
+      LOG_LEVEL: info
+      # What/when to check.
+      DIUN_WATCH_SCHEDULE:            "0 8 * * *"   # daily 08:00 Europe/London
+      DIUN_WATCH_FIRSTCHECKNOTIF:     "false"       # stay quiet on first boot
+      DIUN_PROVIDERS_DOCKER:          "true"
+      DIUN_PROVIDERS_DOCKER_ENDPOINT: tcp://docker-socket-proxy:2375
+      DIUN_PROVIDERS_DOCKER_WATCHBYDEFAULT: "true"  # every container, no labels
+      # How to notify.
+      DIUN_NOTIF_DISCORD_WEBHOOKURL:  ${DIUN_DISCORD_WEBHOOK}
+    volumes:
+      - diun_data:/data
+    networks: [web, socket_proxy]
 
   # ─────────────────────────────────────────────────────────────────────
   # CrowdSec - log analysis + Local API
@@ -457,12 +502,18 @@ volumes:
   caddy_logs:
     name: foundry_caddy_logs
 
+  # Diun's bbolt database - tracks which image versions it has already
+  # announced so each update pings once. Small and rebuildable (worst case
+  # after a wipe: one duplicate round of notifications), so not backed up.
+  diun_data:
+    name: foundry_diun_data
+
 networks:
   web:
     driver: bridge
     name: foundry_web   # explicit name so we don't get foundry-stack_web
 
-  # Isolated network shared only by Dozzle and the socket proxy.
+  # Isolated network shared by Dozzle, Diun, and the socket proxy.
   # `internal: true` blocks outbound traffic from these containers to the
   # internet - the proxy has no business calling out, and it removes one
   # path for an attacker who lands inside it.
