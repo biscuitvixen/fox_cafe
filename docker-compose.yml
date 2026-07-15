@@ -330,7 +330,7 @@ services:
 
   dozzle:
     <<: *hardening
-    image: amir20/dozzle:v10.6.6
+    image: amir20/dozzle:v10.6.9
     container_name: dozzle
     restart: unless-stopped
     init: true
@@ -380,7 +380,7 @@ services:
   # DISCORD_CLIENT_ID/SECRET. Revoke it independently without touching auth.
   diun:
     <<: *hardening
-    image: crazymax/diun:4.29.0
+    image: crazymax/diun:4.33.0
     container_name: diun
     restart: unless-stopped
     init: true
