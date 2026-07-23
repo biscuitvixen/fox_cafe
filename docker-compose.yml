@@ -402,7 +402,7 @@ services:
       TZ: Europe/London
       LOG_LEVEL: info
       # What/when to check.
-      DIUN_WATCH_SCHEDULE:            "0 8 * * *"   # daily 08:00 Europe/London
+      DIUN_WATCH_SCHEDULE:            "0 */6 * * *"   # every 6h
       DIUN_WATCH_FIRSTCHECKNOTIF:     "false"       # stay quiet on first boot
       DIUN_PROVIDERS_DOCKER:          "true"
       DIUN_PROVIDERS_DOCKER_ENDPOINT: tcp://docker-socket-proxy:2375
