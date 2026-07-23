@@ -1,0 +1,5 @@
+# Shared Foundry image, watched once here instead of once per game
+# container (both games set diun.enable=false). Global DIUN_DEFAULTS_*
+# (semver sort, maxTags=1, 3-part-semver includeTags) still apply.
+- name: felddy/foundryvtt
+  watch_repo: true

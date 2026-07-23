@@ -57,6 +57,10 @@ x-foundry-base: &foundry-base
   oom_score_adj: -500
   logging: *default-logging
   networks: [web]
+  # Several games share this image; Diun watches it once via its file provider
+  # (see diun service) so we don't get one notification per game container.
+  labels:
+    diun.enable: "false"
 
 # Env vars that are identical across every game. Per-game `environment:`
 # blocks merge this in via `<<: *foundry-env` and add their own DM creds,
@@ -403,6 +407,9 @@ services:
       DIUN_PROVIDERS_DOCKER:          "true"
       DIUN_PROVIDERS_DOCKER_ENDPOINT: tcp://docker-socket-proxy:2375
       DIUN_PROVIDERS_DOCKER_WATCHBYDEFAULT: "true"  # every container, no labels
+      # File provider: watch the shared foundry image once (both game
+      # containers opt out of the docker provider above via diun.enable=false).
+      DIUN_PROVIDERS_FILE_FILENAME:   /watch.yml
       # Watch each repo's tag list for newer versions, not just the pinned
       # tag's digest. includeTags = 3-part semver only (drops latest/nightly/sha).
       DIUN_DEFAULTS_WATCHREPO:        "true"
@@ -413,6 +420,7 @@ services:
       DIUN_NOTIF_DISCORD_WEBHOOKURL:  ${DIUN_DISCORD_WEBHOOK}
     volumes:
       - diun_data:/data
+      - ./diun/watch.yml:/watch.yml:ro
     networks: [web, socket_proxy]
     # Diun has no listening port and no health subcommand, so liveness is
     # simply "is the serve process alive". pgrep -x matches the process name
