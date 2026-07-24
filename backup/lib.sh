@@ -52,6 +52,9 @@ BACKUP_PATHS=(
   "$COMPOSE_DIR/data/foundry-beastworld/Data"
   "$COMPOSE_DIR/data/foundry-beastworld/Config"
   "$COMPOSE_DIR/data/filebrowser"
+  # Shared asset library (map/token packs, a few GB) uploaded through
+  # filebrowser and mounted read-only into the games - user content, not in git.
+  "$COMPOSE_DIR/data/shared-assets"
   "$COMPOSE_DIR/data/caddy/data"
   # crowdsec/data: SQLite decisions DB + machine identity (re-registering
   # with CAPI on a rebuild is annoying without this).
