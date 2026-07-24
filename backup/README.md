@@ -207,6 +207,44 @@ To test the wiring by hand:
 curl -fsS -G "$KUMA_PUSH_URL" --data-urlencode "status=up" --data-urlencode "msg=manual test"
 ```
 
+### If pushes start returning 404
+
+The push route's only documented 404 is "Monitor not found or not active", so a
+404 reads like a bad or revoked token. It can also mean something else entirely.
+Check the response body, which `-o /dev/null` would otherwise hide:
+
+```bash
+. /etc/restic/fox-cafe.env
+curl -s -G "$KUMA_PUSH_URL" --data-urlencode "status=up" --data-urlencode "msg=probe"
+```
+
+If it contains a `stat_daily` constraint error:
+
+```
+{"ok":false,"msg":"insert into `stat_daily` ... SQLITE_CONSTRAINT:
+ UNIQUE constraint failed: stat_daily.monitor_id, stat_daily.timestamp"}
+```
+
+then Kuma is trying to insert a daily stats row that already exists, rather than
+update it. Two concurrent writes to the same monitor's daily bucket get it into
+this state, and it then rejects **every** push until restarted:
+
+```bash
+docker compose restart uptime-kuma
+```
+
+The database is fine; the bad state is in memory, and a restart clears it. Kuma
+keeps serving normally throughout, so its healthcheck and every other endpoint
+stay green while only pushes fail.
+
+Observed once, on 2026-07-24, when a request issued while Kuma was paused sat in
+the socket backlog and was processed on unpause at the same moment as a second
+push. That is a plausible shape for the nightly pause window, though a real one
+drains status-page reads, which write no stats. If it recurs, the give-away is a
+`WARNING: Kuma push (up) failed` line in `journalctl -u backup-fox-cafe` on a run
+that otherwise succeeded, followed ~25h later by a "backup missed" alert blaming
+restic for a Kuma fault.
+
 ## Verify
 
 Check the timer is scheduled:
