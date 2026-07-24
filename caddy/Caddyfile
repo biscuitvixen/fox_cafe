@@ -458,6 +458,26 @@
     import compression
 }
 
+# One Uptime Kuma status page, with its own auth gate.
+#
+#   args[0] = status page slug (must match the slug set in Kuma)
+#   args[1] = authorization policy name (e.g. dnd_policy)
+#
+# Every route a status page needs is slug-scoped, so several pages can
+# share status.bluefox.cafe while being gated differently. The matcher
+# name embeds the slug so repeated imports don't clobber each other.
+#
+# Note the heartbeat endpoint puts the slug last, unlike the others.
+(gated_status_slug) {
+    @status_{args[0]} path /status/{args[0]} /status/{args[0]}/* /api/status-page/{args[0]} /api/status-page/{args[0]}/* /api/status-page/heartbeat/{args[0]}
+    handle @status_{args[0]} {
+        authorize with {args[1]}
+        reverse_proxy uptime-kuma:3001 {
+            import proxy_defaults
+        }
+    }
+}
+
 # Themed error pages served from the Hugo build under
 # /srv/bluefox.cafe/current/errors/<code>/ (pretty URLs - the rewrite
 # targets the directory and file_server resolves its index.html).
@@ -602,6 +622,45 @@ kuma.bluefox.cafe {
     import compression
     reverse_proxy uptime-kuma:3001 {
         import proxy_defaults
+    }
+}
+
+# Uptime Kuma status pages - one host, many pages, each gated separately.
+#
+# Add a page: create it in Kuma, then add one `import gated_status_slug
+# <slug> <policy>` line below. Nothing else changes.
+#
+# Only slug-scoped routes and the shared SPA bundle are proxied; Kuma's
+# dashboard, login and general /api/* are unreachable here. Admin access
+# stays on kuma.bluefox.cafe.
+#
+# socket.io is deliberately absent: viewing a status page is pure REST via
+# axios, and the socket is only used by Kuma's own edit mode. Edit status
+# pages from kuma.bluefox.cafe.
+status.bluefox.cafe {
+    import access_log
+    import security_headers
+    import error_pages
+    import compression
+
+    import gated_status_slug foundry dnd_policy
+
+    # Shared by every page: Kuma's index.html references its bundle and any
+    # uploaded logo by absolute path, so these can't be slug-scoped. Gated
+    # at member level, the loosest policy any slug uses - the bundle is the
+    # stock Kuma frontend and discloses nothing. Admins match dnd_policy
+    # too, so an admin-only page still loads its assets.
+    @status_shared path /assets/* /upload/*
+    handle @status_shared {
+        authorize with dnd_policy
+        reverse_proxy uptime-kuma:3001 {
+            import proxy_defaults
+        }
+    }
+
+    # Bare / has no meaningful target once there are several pages.
+    handle {
+        error 404
     }
 }
 
