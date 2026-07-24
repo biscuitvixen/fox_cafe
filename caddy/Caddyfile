@@ -248,7 +248,7 @@
 (static_csp) {
     # One line: Caddyfile keeps `\`+newline literally inside a quoted value,
     # which produces an invalid header that never gets sent. Do not wrap.
-    header Content-Security-Policy "default-src 'self'; script-src 'self' 'unsafe-inline'; style-src 'self' https://assets.bluefox.cafe 'unsafe-inline'; font-src 'self' https://assets.bluefox.cafe data:; img-src 'self' data: https:; connect-src 'self'; frame-ancestors 'none'; base-uri 'self'; form-action 'self'"
+    header Content-Security-Policy "default-src 'self'; script-src 'self' 'unsafe-inline'; style-src 'self' https://assets.bluefox.cafe; font-src 'self' https://assets.bluefox.cafe data:; img-src 'self' data: https:; connect-src 'self'; frame-ancestors 'none'; base-uri 'self'; form-action 'self'"
 }
 
 (security_headers) {
