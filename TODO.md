@@ -56,24 +56,23 @@ Plan was: add a `(proxy_headers)` snippet that sets `X-Real-IP
 (`gated_proxy_site` covering demiplane / beastworld / files, plus the
 inline blocks for kuma and logs).
 
-Holding off until we confirm what each upstream actually needs:
+Checked 2026-07-24, and most of it turns out to be unnecessary:
 
-- **Foundry** (demiplane, beastworld, test): needs `proxySSL: true` and
-  `trustedProxies` set in each instance's `options.json` for its audit
-  log + invite-link / world URLs to reflect real client IPs and the
-  outer https scheme. Without that, sending `X-Real-IP` from Caddy is
-  cosmetic. Verify what's in the current Foundry configs (under each
-  game's data dir) and whether the trusted-proxies list correctly
-  covers the Caddy container's IP range on the compose network.
-- **filebrowser**: honors `X-Forwarded-For` out of the box for its
-  activity log; check whether the current logs show the Caddy container
-  IP (`172.x.x.x`) or real client IPs.
-- **uptime-kuma**: reads `X-Forwarded-For` directly for monitor /
-  notification source attribution. Probably fine as-is.
+- **filebrowser**: already logs real client IPs (`80.4.14.198` seen in
+  its access log, not a `172.x` container address), so it honours
+  `X-Forwarded-For` as expected. Nothing to do.
+- **uptime-kuma**: reads `X-Forwarded-For` directly. Nothing to do.
 - **dozzle**: doesn't care about client IPs (it shows container logs).
+- **Foundry** (demiplane, beastworld): `proxySSL: true` and
+  `proxyPort: 443` are both set, but **`trustedProxies` is unset on
+  both**. Until it is, Foundry ignores the forwarded headers and sending
+  `X-Real-IP` from Caddy would be cosmetic.
 
-Once those are checked, decide whether to add the snippet at all and
-which blocks to import it into.
+So this is now one decision rather than an investigation: either set
+`trustedProxies` in each game's `options.json` to cover the Caddy
+container's range on `foundry_web` and then add the snippet, or close
+this out. Foundry's audit log is the only consumer, so closing it out is
+defensible.
 
 ## Tighten CSP — drop `'unsafe-inline'`
 
@@ -131,41 +130,6 @@ Two steps, each can ship independently:
 
 When both are done, the CSP becomes a real "no inline anything" policy
 which meaningfully closes the XSS attack surface on the landing pages.
-
-## Verify crowdsec coverage of `/auth/*`
-
-Caddy has no in-process rate limit on the auth portal. The pinned
-authcrunch image doesn't include `caddy-ratelimit`; adding it would
-mean abandoning the upstream image and building Caddy via `xcaddy`
-with both plugins compiled in — non-trivial ongoing maintenance.
-
-The chosen mitigation is layered:
-
-1. **Discord** rate-limits the OAuth callback at its end. There's no
-   password bruteforce surface on our portal (Discord owns credential
-   validation); the worst an attacker can do is "fill our logs / chew
-   CPU."
-2. **crowdsec** in the compose stack runs `crowdsecurity/caddy` +
-   `crowdsecurity/http-cve` collections against the JSON access log
-   and bans abusive sources at iptables via the firewall bouncer.
-
-Before declaring this done, verify what crowdsec actually catches:
-
-- Run `docker compose exec crowdsec cscli scenarios list` and confirm
-  the loaded scenarios include something like
-  `crowdsecurity/http-bf-wordpress_bf`, `crowdsecurity/http-probing`,
-  and `crowdsecurity/http-crawl-non_statics`. Identify which of these
-  (if any) would actually trigger on a flood of requests to `/auth/*`.
-- Hit `/auth/*` with a burst from a test machine (e.g. ~200 reqs over
-  10s) and check `cscli decisions list` for an active ban. If nothing
-  fires, the layered claim is wishful thinking.
-- If coverage is weak, the options are: (a) write a custom crowdsec
-  scenario tuned for our auth paths, or (b) bite the bullet and build
-  a combined `xcaddy` image with caddy-security + caddy-ratelimit.
-  Prefer (a).
-
-Until verified, the "rate limiting is handled" claim above the auth
-site block in `caddy/Caddyfile` is aspirational, not load-tested.
 
 ## Scheduled JWT signing-key rotation
 
