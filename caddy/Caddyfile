@@ -220,31 +220,6 @@
 # Reusable snippets - keep per-site config DRY
 # ─────────────────────────────────────────────────────────────────────
 
-# Public passthroughs for the apex-level shared trees that every themed
-# page references with root-relative URLs (/css/<bundle>.css, /fonts/*,
-# /shared/og/*). Imported by each gated site so these requests resolve
-# from the apex build without ever touching the per-site root - which
-# keeps gated subdomains physically unable to read each other's content
-# (see access-control note on gated_static_site).
-#
-# handle_path strips the matched prefix before applying root, and runs
-# before the gated handle{} block, so these assets bypass authorize.
-# That's intentional: CSS, fonts, and OG images are public by design.
-(public_assets) {
-    handle_path /shared/* {
-        root * /srv/bluefox.cafe/current/shared
-        file_server
-    }
-    handle_path /css/* {
-        root * /srv/bluefox.cafe/current/css
-        file_server
-    }
-    handle_path /fonts/* {
-        root * /srv/bluefox.cafe/current/fonts
-        file_server
-    }
-}
-
 # Strict CSP for the static landing pages (homepage, dnd, previews,
 # errors). Blocks any resource not loaded from one of the explicit
 # origins below - even if an attacker manages to inject HTML, they can't
@@ -273,8 +248,8 @@
 (static_csp) {
     header Content-Security-Policy "default-src 'self'; \
         script-src 'self' 'unsafe-inline'; \
-        style-src  'self' 'unsafe-inline'; \
-        font-src   'self' data:; \
+        style-src  'self' https://assets.bluefox.cafe 'unsafe-inline'; \
+        font-src   'self' https://assets.bluefox.cafe data:; \
         img-src    'self' data: https:; \
         connect-src 'self'; \
         frame-ancestors 'none'; \
@@ -373,9 +348,8 @@
 #
 # Rooted at the preview subdir and rewriting every bot request to
 # index.html, so the bot gets exactly one page no matter what path it
-# probes. The page's root-relative /css/*, /fonts/*, /shared/* refs are
-# served by (public_assets), which the gated site imports separately
-# and which matches before this snippet's handle{} block.
+# probes. Its CSS/fonts/OG refs point at assets.bluefox.cafe; bots don't
+# render CSS anyway, so only the OG image needs to resolve.
 #
 # IMPORTANT: User-Agent is trivially spoofable, so the previews/<name>/
 # tree must contain ONLY content safe to expose publicly (title, blurb,
@@ -402,15 +376,13 @@
 # Rooted at the site's own /<name>/ subdir so the gated handler is
 # physically incapable of reading another gated subdomain's tree even
 # if the request URI tries to escape (e.g. /demiplane/index.html from
-# dnd.bluefox.cafe just 404s). Shared assets that the page references
-# with root-relative URLs (/css/*, /fonts/*, /shared/*) come from
-# (public_assets), whose handle_path entries match before this handle{}.
+# dnd.bluefox.cafe just 404s). Shared CSS/fonts/OG load from
+# assets.bluefox.cafe, so this host serves only its own gated content.
 (gated_static_site) {
     import security_headers
     import static_csp
     import error_pages
     import preview_bot {args[0]}
-    import public_assets
 
     handle {
         authorize with {args[1]}
@@ -431,22 +403,12 @@
 #   args[1] = authorization policy name
 #   args[2] = upstream host:port (e.g. foundry-beastworld:30000)
 #
-# Only /shared/* is passed through to the apex Hugo build. We deliberately
-# do NOT import the full (public_assets) here because Foundry serves its
-# own client CSS at /css/* and fonts at /fonts/* - intercepting those
-# paths would strip Foundry's styling and the UI renders as unstyled HTML.
-# Bots fetching preview pages don't render CSS, so losing /css and /fonts
-# for previews is harmless; only the OG image under /shared/og/* matters.
-# See TODO.md "Move public assets to assets.bluefox.cafe" for the proper
-# long-term fix that removes this collision class entirely.
+# Public assets (CSS/fonts/OG) now live on assets.bluefox.cafe, so no asset
+# passthrough is needed here and Foundry's own /css /fonts no longer clash.
 (gated_proxy_site) {
     import security_headers
     import error_pages
     import preview_bot {args[0]}
-    handle_path /shared/* {
-        root * /srv/bluefox.cafe/current/shared
-        file_server
-    }
 
     handle {
         authorize with {args[1]}
@@ -515,9 +477,8 @@ bluefox.cafe {
 
     # Release-symlink layout: deploy.sh writes /srv/bluefox.cafe/releases/<ts>/
     # and flips current via `ln -sfn`. Caddy follows the symlink on the next
-    # request, so publishes are zero-downtime with no reload. The site-level
-    # root covers /css/*, /fonts/*, /shared/* directly via the catch-all
-    # file_server below, so public_assets isn't imported here.
+    # request, so publishes are zero-downtime with no reload. Public assets
+    # live on assets.bluefox.cafe; the apex serves its own pages and /images.
     root * /srv/bluefox.cafe/current
 
     # Authcrunch redirects here on authorization failure (`set forbidden url`
@@ -569,12 +530,34 @@ auth.bluefox.cafe {
     import access_log
     import security_headers
     import compression
-    # No error_pages / public_assets: authcrunch renders its own portal UI
-    # (including its own error responses) and doesn't reference our Hugo
-    # build's /css/, /fonts/, or /shared/ trees.
+    # No error_pages: authcrunch renders its own portal UI (including its
+    # own error responses) and doesn't reference our Hugo build's assets.
     route /auth* {
         authenticate with foundryauth
     }
+}
+
+# ─────────────────────────────────────────────────────────────────────
+# Public asset host - theme CSS, webfonts, OG images. No auth by design;
+# rooted at the public_assets subtree so gated trees are unreachable here.
+# ─────────────────────────────────────────────────────────────────────
+assets.bluefox.cafe {
+    import access_log
+    import security_headers
+    root * /srv/bluefox.cafe/current/public_assets
+
+    # CORS: fonts and the SRI'd stylesheet need it cross-origin. ACAO can't
+    # wildcard, so match our own subdomains by Origin and echo it back.
+    @own header_regexp Origin ^https://([a-z0-9-]+\.)?bluefox\.cafe$
+    header @own Access-Control-Allow-Origin "{http.request.header.Origin}"
+    header @own Vary Origin
+
+    # Fingerprinted css + stable fonts are immutable; og images are not.
+    @immutable path /css/* /fonts/*
+    header @immutable Cache-Control "public, max-age=31536000, immutable"
+
+    file_server
+    import compression
 }
 
 # ─────────────────────────────────────────────────────────────────────
@@ -618,7 +601,6 @@ kuma.bluefox.cafe {
     import access_log
     import gated_admin
     import error_pages
-    import public_assets
     import compression
     reverse_proxy uptime-kuma:3001 {
         import proxy_defaults
@@ -668,7 +650,6 @@ logs.bluefox.cafe {
     import access_log
     import gated_admin
     import error_pages
-    import public_assets
     import compression
     reverse_proxy dozzle:8080 {
         import proxy_defaults
@@ -697,7 +678,6 @@ files.bluefox.cafe {
     import access_log
     import security_headers
     import error_pages
-    import public_assets
     import compression
     error 404
 }
