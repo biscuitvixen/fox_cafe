@@ -101,9 +101,9 @@ guild → role → policy chain.
 ## Backups
 
 Nightly restic snapshot at **09:00 UTC** - see [backup/README.md](backup/README.md) for
-full setup instructions. The Foundry containers are stopped for the duration;
-Caddy and monitoring stay up. A shell `trap` guarantees containers restart even
-if restic errors.
+full setup instructions. The Foundry games, filebrowser, crowdsec and Uptime
+Kuma are paused for the duration; Caddy and Dozzle stay up. A shell `trap`
+guarantees containers resume even if restic errors.
 
 Quick reference:
 - Status: `systemctl status backup-fox-cafe`

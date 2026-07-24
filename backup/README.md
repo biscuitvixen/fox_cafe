@@ -1,8 +1,10 @@
 # Backup
 
-Foundry game containers are stopped briefly each night for a clean restic
-snapshot, then restarted unconditionally via a shell trap. Caddy, Uptime Kuma,
-and Dozzle stay up throughout - only the game servers are paused.
+Containers are paused briefly each night for a clean restic snapshot, then
+resumed unconditionally via a shell trap. Caddy and Dozzle stay up throughout;
+the Foundry games, filebrowser, crowdsec and Uptime Kuma are paused. Kuma is in
+that list both so its SQLite db is snapshotted with no writer attached and so it
+doesn't poll the other paused containers and alert on them.
 
 Two-stage design:
 1. **restic → local repo** on the VPS (`$LOCAL_REPOSITORY`) - always runs, fast, works offline
@@ -24,15 +26,10 @@ All paths are configured via the env file in step 3 below, loaded by the script 
 | `data/foundry-beastworld/Config` | Same | Same |
 | `data/caddy/data` | ACME certs + state | Let's Encrypt rate-limits re-issuance to 5/week per domain - losing this is painful |
 | `data/filebrowser` | Filebrowser DB + settings | User accounts, scopes, share links |
+| `data/uptime-kuma` | Monitors, notifications, status pages, push tokens | A rebuilt Kuma mints a new push token, which then has to be reconciled with `KUMA_PUSH_URL` by hand |
 | `.env` | Discord OAuth creds, JWT key, Foundry licenses | Required to start the stack. Same security boundary as the restic password file (both plaintext on host) so no extra exposure. |
 
-Not backed up: `data/uptime-kuma` (monitor config, easily recreated),
-`container_cache/`, `Logs/`.
-
-One wrinkle now that the backup job reports to Kuma: recreating Kuma from
-scratch generates a **new** push token, so `KUMA_PUSH_URL` in
-`/etc/restic/fox-cafe.env` has to be updated to match or the heartbeat silently
-stops arriving.
+Not backed up: `container_cache/`, `Logs/`.
 
 ## Setup
 

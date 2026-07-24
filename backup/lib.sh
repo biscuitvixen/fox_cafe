@@ -30,8 +30,10 @@ fc_load_env() {
     export RESTIC_REPOSITORY="$LOCAL_REPOSITORY"
 }
 
-# Containers to pause during backup. Caddy and monitoring stay up.
-# Filebrowser is included so its sqlite db is snapshotted with no writer attached.
+# Containers to pause during backup. Caddy stays up.
+# Filebrowser and uptime-kuma are included so their sqlite dbs are snapshotted
+# with no writer attached; pausing kuma also stops it polling the other paused
+# containers and alerting on them.
 # pause/unpause (SIGSTOP/SIGCONT) is used instead of stop/start so Docker
 # doesn't treat the exit as a crash and auto-restart containers mid-backup.
 CONTAINERS=(
@@ -39,6 +41,7 @@ CONTAINERS=(
   foundry-beastworld
   filebrowser
   crowdsec
+  uptime-kuma
 )
 
 BACKUP_PATHS=(
@@ -57,6 +60,9 @@ BACKUP_PATHS=(
   # rolled at 100MB / kept 5, so anything in there is ephemeral by design.
   "$COMPOSE_DIR/data/crowdsec/data"
   "$COMPOSE_DIR/data/crowdsec/config"
+  # uptime-kuma: monitors, notification config, status pages, and the push
+  # token that KUMA_PUSH_URL in /etc/restic/fox-cafe.env must match.
+  "$COMPOSE_DIR/data/uptime-kuma"
   # .env carries Discord OAuth creds, JWT key, and Foundry licenses. Without
   # it the stack won't start. Same security boundary as the restic password
   # file at /etc/restic/fox-cafe.env (both plaintext on the same host), so

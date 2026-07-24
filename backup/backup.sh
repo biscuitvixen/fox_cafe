@@ -48,7 +48,14 @@ fc_push() {
         || echo "WARNING: Kuma push ($1) failed" >&2
 }
 
-trap 'fc_push down "line $LINENO: $BASH_COMMAND"' ERR
+# Kuma is in the pause list, so unpause before reporting or the heartbeat hits
+# a frozen container. fc_unpause also clears the EXIT trap, so no double run.
+fc_fail() {
+    fc_unpause 2>/dev/null || true
+    fc_push down "$1"
+}
+
+trap 'fc_fail "line $LINENO: $BASH_COMMAND"' ERR
 
 fc_pause
 
