@@ -1,17 +1,5 @@
 # TODO
 
-## Backup failure notifications via Uptime Kuma
-
-Add a push monitor for the nightly backup job so failures are surfaced
-immediately rather than discovered at restore time.
-
-- Add a success ping at the end of `backup.sh` (HTTP GET to the push
-  monitor URL stored in `fox-cafe.env`).
-- Add an `ERR` trap at the top of `backup.sh` that pushes `status=down`
-  on any unhandled error.
-- Create the push monitor in Uptime Kuma and set a heartbeat interval
-  slightly longer than the expected backup window.
-
 ## Move public assets to assets.bluefox.cafe
 
 Current model: `/css/*`, `/fonts/*`, `/shared/*` are served via the

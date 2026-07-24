@@ -225,6 +225,11 @@ services:
     # and SETGID even when staying as root. Without these the container
     # crash-loops on `setgroups: Operation not permitted`.
     cap_add: [SETUID, SETGID]
+    # Loopback-only publish so the host's backup job can POST to /api/push/*
+    # without traversing Caddy, which auth-gates every path on kuma.bluefox.cafe.
+    # Bound to 127.0.0.1 explicitly, so this adds nothing to the public surface.
+    ports:
+      - "127.0.0.1:3001:3001"
     volumes:
       - ./data/uptime-kuma:/app/data
     networks: [web]

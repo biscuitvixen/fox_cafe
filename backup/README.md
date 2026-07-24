@@ -29,6 +29,11 @@ All paths are configured via the env file in step 3 below, loaded by the script 
 Not backed up: `data/uptime-kuma` (monitor config, easily recreated),
 `container_cache/`, `Logs/`.
 
+One wrinkle now that the backup job reports to Kuma: recreating Kuma from
+scratch generates a **new** push token, so `KUMA_PUSH_URL` in
+`/etc/restic/fox-cafe.env` has to be updated to match or the heartbeat silently
+stops arriving.
+
 ## Setup
 
 ### 1. Install restic
@@ -54,9 +59,17 @@ RESTIC_PASSWORD=your-strong-password-here
 LOCAL_REPOSITORY=<local-repo-path>
 REMOTE_MOUNT=<remote-mount-point>
 REMOTE_REPOSITORY=<remote-mount-point>/<repo-subdir>
+KUMA_PUSH_URL=http://127.0.0.1:3001/api/push/<push-token>
 EOF
 sudo chmod 600 /etc/restic/fox-cafe.env
 ```
+
+`KUMA_PUSH_URL` is the Uptime Kuma push monitor endpoint (see [Failure
+notifications](#failure-notifications) below). It holds a secret token, which is
+why it lives here rather than in the repo. Leave it out and the heartbeat is
+silently skipped; the backup itself is unaffected. Note the URL is the base
+endpoint with **no query string** - `backup.sh` appends `status`/`msg`/`ping`
+itself.
 
 Example values: `LOCAL_REPOSITORY=/var/backups/fox-cafe`, `REMOTE_MOUNT=/mnt/<remote-name>`, `REMOTE_REPOSITORY=/mnt/<remote-name>/fox-cafe`.
 
@@ -152,6 +165,49 @@ Enable it:
 ```bash
 sudo systemctl daemon-reload
 sudo systemctl enable --now backup-fox-cafe.timer
+```
+
+## Failure notifications
+
+`backup.sh` reports each run to an Uptime Kuma **push** monitor ("Nightly
+Backup"), which alerts to Discord if a heartbeat fails to arrive.
+
+- **Success**: pushes `status=up` at the end of the run. The backup's wall-clock
+  duration is sent as the monitor's `ping`, so Kuma graphs how long backups take
+  and you can see the trend creeping up before it becomes a problem.
+- **Failure**: an `ERR` trap pushes `status=down` with the failing line number
+  and command. The container-unpause `EXIT` trap still runs afterwards, so a
+  failed backup never leaves Foundry paused.
+- **Degraded**: a failed forget/prune or a skipped offsite copy is not fatal (by
+  design, see the script comments), so the run still pushes `up`, but the
+  warnings ride along in the message. A persistently unmounted NFS share shows
+  as `OK, degraded: [offsite skipped: not mounted]` in the Kuma UI rather than
+  hiding behind a green tick.
+
+The monitor's heartbeat interval is **90000s (25 hours)**, not 24. The interval
+is a deadline measured from the last heartbeat, and the heartbeat fires when the
+backup *finishes*, so its clock time drifts with backup duration. At exactly 24h
+a run that takes 30 minutes longer than the previous one trips a false alarm.
+The extra hour absorbs that drift, so a genuine miss alerts around 10:00 UTC.
+
+Kuma is reached over `127.0.0.1:3001`, published loopback-only by the
+`uptime-kuma` service in `docker-compose.yml`. The public
+`https://kuma.bluefox.cafe/api/push/...` URL that the Kuma UI shows you does
+**not** work from here: that host imports `gated_admin`, so every path including
+`/api/push/*` is behind the Discord auth gate and a push gets a 302 to the auth
+portal. That failure is quiet in the worst way, because `curl` treats a 302 as
+success, so the script would report a clean run while the heartbeat never
+arrives and the monitor goes down 25 hours later blaming restic.
+
+Ignore the `docker run ... louislam/uptime-kuma:push` snippet the UI offers.
+That is an unconditional `while true; curl; sleep` loop, so it reports OK
+whether or not the backup worked. It monitors host liveness, not job outcome.
+
+To test the wiring by hand:
+
+```bash
+. /etc/restic/fox-cafe.env
+curl -fsS -G "$KUMA_PUSH_URL" --data-urlencode "status=up" --data-urlencode "msg=manual test"
 ```
 
 ## Verify
