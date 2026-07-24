@@ -1,35 +1,5 @@
 # TODO
 
-## Add client-IP headers to reverse_proxy blocks
-
-Caddy's defaults send `X-Forwarded-For` / `X-Forwarded-Proto` /
-`X-Forwarded-Host` and pass the original `Host` through, but don't set
-`X-Real-IP`. Several apps prefer `X-Real-IP` for their own access /
-audit / ban logging over parsing `X-Forwarded-For` themselves.
-
-Plan was: add a `(proxy_headers)` snippet that sets `X-Real-IP
-{client_ip}` and import it inside every `reverse_proxy { ... }` block
-(`gated_proxy_site` covering demiplane / beastworld / files, plus the
-inline blocks for kuma and logs).
-
-Checked 2026-07-24, and most of it turns out to be unnecessary:
-
-- **filebrowser**: already logs real client IPs (`80.4.14.198` seen in
-  its access log, not a `172.x` container address), so it honours
-  `X-Forwarded-For` as expected. Nothing to do.
-- **uptime-kuma**: reads `X-Forwarded-For` directly. Nothing to do.
-- **dozzle**: doesn't care about client IPs (it shows container logs).
-- **Foundry** (demiplane, beastworld): `proxySSL: true` and
-  `proxyPort: 443` are both set, but **`trustedProxies` is unset on
-  both**. Until it is, Foundry ignores the forwarded headers and sending
-  `X-Real-IP` from Caddy would be cosmetic.
-
-So this is now one decision rather than an investigation: either set
-`trustedProxies` in each game's `options.json` to cover the Caddy
-container's range on `foundry_web` and then add the snippet, or close
-this out. Foundry's audit log is the only consumer, so closing it out is
-defensible.
-
 ## Tighten CSP — drop `'unsafe-inline'`
 
 The `(static_csp)` snippet in `caddy/Caddyfile` still allows

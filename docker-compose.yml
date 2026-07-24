@@ -57,6 +57,9 @@ x-foundry-base: &foundry-base
   oom_score_adj: -500
   logging: *default-logging
   networks: [web]
+  # Client IP: Foundry has no proxy-IP-trust option, so its audit log shows
+  # Caddy's container IP, not the player's - not configurable. Real client IPs
+  # live in the Caddy access log / CrowdSec. See (proxy_defaults) in Caddyfile.
   # Several games share this image; Diun watches it once via its file provider
   # (see diun service) so we don't get one notification per game container.
   labels:

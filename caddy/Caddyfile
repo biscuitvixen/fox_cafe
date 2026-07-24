@@ -323,6 +323,10 @@
 # websocket sessions and filebrowser's slow large uploads aren't cut
 # mid-flight. Caddy proxies WebSocket upgrades automatically; no extra
 # directive needed.
+#
+# Also deliberately no X-Real-IP: no upstream consumes it (filebrowser and
+# Kuma read X-Forwarded-For, dozzle ignores IPs), and Foundry has no
+# proxy-IP-trust option so it can't honour forwarded IPs regardless.
 (proxy_defaults) {
     transport http {
         dial_timeout 10s
