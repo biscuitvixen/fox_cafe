@@ -123,7 +123,9 @@ services:
     # prior image version) become unreadable on next start.
     cap_add: [NET_BIND_SERVICE, CHOWN, FOWNER, DAC_OVERRIDE, SETUID, SETGID]
     volumes:
-      - ./caddy/Caddyfile:/etc/caddy/Caddyfile:ro
+      # Directory, not the file: single-file bind mounts bind an inode, so an
+      # atomic save leaves the container reading a stale copy.
+      - ./caddy:/etc/caddy:ro
       # All site content (apex, dnd, errors, previews, shared assets) comes
       # from the release-symlink layout published by ~/bluefox.cafe/deploy.sh.
       - /srv/bluefox.cafe:/srv/bluefox.cafe:ro
