@@ -225,13 +225,10 @@
 # origins below - even if an attacker manages to inject HTML, they can't
 # pull a payload from a random domain.
 #
-# `'unsafe-inline'` on script-src is required by the homepage rotator
-# in layouts/index.html, which is parameterized by Hugo template vars
-# ({{ .Params.roles | jsonify | safeJS }}) and so has to ship inline.
-# `'unsafe-inline'` on style-src covers the static rotator <style>
-# block and a couple of inline style="..." attributes on /dnd/. Both
-# are removable - see TODO.md "Tighten CSP" - but require Hugo-side
-# refactors first.
+# No `'unsafe-inline'`: this is a strict "no inline anything" policy. The one
+# inline script (the pre-paint theme resolver in the Hugo baseof.html) is
+# allowlisted by the sha256 below; recompute it if that script changes. All
+# other JS is external on assets.bluefox.cafe, and all CSS is in the bundle.
 #
 # CDN allowlist entries (cdn.tailwindcss.com, unpkg.com,
 # cdnjs.cloudflare.com) were dropped: the migration from the
@@ -242,13 +239,13 @@
 #
 # Do NOT import this on Foundry sites - Foundry's client uses inline
 # scripts, dynamic imports, and module-specific resources we don't
-# enumerate, so a strict CSP would break gameplay. The global
-# `frame-ancestors 'none'` from (security_headers) still applies there.
+# enumerate, so a strict CSP would break gameplay. `X-Frame-Options: DENY`
+# from (security_headers) still guards those against framing.
 
 (static_csp) {
     # One line: Caddyfile keeps `\`+newline literally inside a quoted value,
     # which produces an invalid header that never gets sent. Do not wrap.
-    header Content-Security-Policy "default-src 'self'; script-src 'self' 'unsafe-inline'; style-src 'self' https://assets.bluefox.cafe; font-src 'self' https://assets.bluefox.cafe data:; img-src 'self' data: https:; connect-src 'self'; frame-ancestors 'none'; base-uri 'self'; form-action 'self'"
+    header Content-Security-Policy "default-src 'self'; script-src 'self' https://assets.bluefox.cafe 'sha256-8kj5+m9I2worSw84mHTAUbpVnkTVeB/PMNjnSKi2V3Q='; style-src 'self' https://assets.bluefox.cafe; font-src 'self' https://assets.bluefox.cafe data:; img-src 'self' data: https:; connect-src 'self'; frame-ancestors 'none'; base-uri 'self'; form-action 'self'"
 }
 
 (security_headers) {
