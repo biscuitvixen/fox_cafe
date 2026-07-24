@@ -246,15 +246,9 @@
 # `frame-ancestors 'none'` from (security_headers) still applies there.
 
 (static_csp) {
-    header Content-Security-Policy "default-src 'self'; \
-        script-src 'self' 'unsafe-inline'; \
-        style-src  'self' https://assets.bluefox.cafe 'unsafe-inline'; \
-        font-src   'self' https://assets.bluefox.cafe data:; \
-        img-src    'self' data: https:; \
-        connect-src 'self'; \
-        frame-ancestors 'none'; \
-        base-uri 'self'; \
-        form-action 'self'"
+    # One line: Caddyfile keeps `\`+newline literally inside a quoted value,
+    # which produces an invalid header that never gets sent. Do not wrap.
+    header Content-Security-Policy "default-src 'self'; script-src 'self' 'unsafe-inline'; style-src 'self' https://assets.bluefox.cafe 'unsafe-inline'; font-src 'self' https://assets.bluefox.cafe data:; img-src 'self' data: https:; connect-src 'self'; frame-ancestors 'none'; base-uri 'self'; form-action 'self'"
 }
 
 (security_headers) {
@@ -266,14 +260,12 @@
         X-Content-Type-Options "nosniff"
         # Send origin only (no path) on cross-origin requests.
         Referrer-Policy "strict-origin-when-cross-origin"
-        # Clickjacking defence: refuse to be embedded in any iframe.
-        # `frame-ancestors 'none'` is the modern CSP equivalent; the older
-        # `X-Frame-Options: DENY` is kept for legacy browser compat. This
-        # only blocks OTHER pages from framing us - our own pages can still
-        # use iframes internally (e.g. Foundry's UI). If a future feature
-        # ever needs same-origin embedding, swap to `frame-ancestors 'self'`
-        # and `X-Frame-Options: SAMEORIGIN`.
-        Content-Security-Policy "frame-ancestors 'none'"
+        # Clickjacking guard on every site: X-Frame-Options: DENY blocks all
+        # framing and every browser honours it. No `frame-ancestors` CSP here
+        # - a second header setting Content-Security-Policy collides with
+        # (static_csp) and Caddy keeps only one, which was silently dropping
+        # the strict policy on the static sites. CSP is owned solely by
+        # (static_csp) now, which carries `frame-ancestors 'none'` itself.
         X-Frame-Options "DENY"
         # Don't advertise that we're Caddy.
         -Server
