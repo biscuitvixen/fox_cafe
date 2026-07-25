@@ -18,7 +18,8 @@
 #                       or to remove a one-off mistake. Default: local repo.
 #   snapshots           List snapshots (default: local; --remote for remote)
 #   check               Verify repo integrity (default: local; --remote for remote)
-#   stats               Repo size / dedup stats (default: local; --remote for remote)
+#   stats               Repo size / dedup stats (default: local; --remote for
+#                       remote). Add --raw for actual bytes on disk.
 #   unlock              Remove stale repo locks (default: local; --remote for remote)
 #   pause / unpause     Pause or unpause the Foundry + filebrowser containers
 #   dry-run             Full pipeline with no writes (backup+forget+copy, --dry-run)
@@ -29,6 +30,8 @@
 #                       and 'dry-run' this also skips container pause/unpause.
 #   --remote            Target the remote repo instead of the local repo (where
 #                       the command is repo-scoped: snapshots/check/stats/unlock).
+#   --raw               'stats' only: report deduplicated, compressed bytes on
+#                       disk rather than restore size. Ignored by other commands.
 
 set -euo pipefail
 
@@ -38,16 +41,20 @@ fc_load_env
 
 DRY_RUN=0
 REMOTE=0
+RAW=0
 CMD=""
 SNAPSHOT_ID=""
 
-usage() { sed -n '2,30p' "$0" | sed 's/^# \{0,1\}//'; }
+# Print the header block: line 2 through the first blank line, so adding usage
+# text never needs a matching line-number bump here.
+usage() { sed -n '2,/^$/p' "$0" | sed 's/^# \{0,1\}//'; }
 
 parse_args() {
     while [[ $# -gt 0 ]]; do
         case "$1" in
             --dry-run) DRY_RUN=1 ;;
             --remote)  REMOTE=1 ;;
+            --raw)     RAW=1 ;;
             -h|--help) usage; exit 0 ;;
             *)
                 if [[ -z "$CMD" ]]; then
@@ -133,7 +140,13 @@ cmd_delete() {
 
 cmd_snapshots() { restic -r "$(target_repo)" snapshots; }
 cmd_check()     { restic -r "$(target_repo)" check; }
-cmd_stats()     { restic -r "$(target_repo)" stats; }
+# Default restic mode is restore-size (logical size of the latest snapshot's
+# files); raw-data is what the repo actually occupies across all snapshots.
+cmd_stats() {
+    local mode=()
+    [[ "$RAW" -eq 1 ]] && mode=(--mode raw-data)
+    restic -r "$(target_repo)" stats "${mode[@]}"
+}
 cmd_unlock()    { restic -r "$(target_repo)" unlock; }
 
 cmd_dry_run() {
@@ -166,6 +179,8 @@ cmd_menu() {
         "check (remote)"
         "stats (local)"
         "stats (remote)"
+        "stats raw / on-disk size (local)"
+        "stats raw / on-disk size (remote)"
         "unlock (local)"
         "unlock (remote)"
         "pause containers"
@@ -184,8 +199,10 @@ cmd_menu() {
             "snapshots (remote)") REMOTE=1; cmd_snapshots; break ;;
             "check (local)")      REMOTE=0; cmd_check;     break ;;
             "check (remote)")     REMOTE=1; cmd_check;     break ;;
-            "stats (local)")      REMOTE=0; cmd_stats;     break ;;
-            "stats (remote)")     REMOTE=1; cmd_stats;     break ;;
+            "stats (local)")      REMOTE=0; RAW=0; cmd_stats; break ;;
+            "stats (remote)")     REMOTE=1; RAW=0; cmd_stats; break ;;
+            "stats raw / on-disk size (local)")  REMOTE=0; RAW=1; cmd_stats; break ;;
+            "stats raw / on-disk size (remote)") REMOTE=1; RAW=1; cmd_stats; break ;;
             "unlock (local)")     REMOTE=0; cmd_unlock;    break ;;
             "unlock (remote)")    REMOTE=1; cmd_unlock;    break ;;
             "pause containers")   fc_pause; trap - EXIT;   break ;;
