@@ -40,7 +40,12 @@ If `SECURITY_PUSH_URL` is set, the script pushes `up`/`down` to an Uptime Kuma
 push gets a `302` that `curl` reads as success (see `backup/README.md`).
 
 1. Kuma UI (`kuma.bluefox.cafe`) -> add a **Push** monitor, name "Security
-   check", heartbeat interval ~1800s + a retry, notification -> Discord.
+   check", heartbeat interval **2400s** + a retry, notification -> Discord.
+
+   The heartbeat interval must exceed the 30 min timer period by a margin. The
+   push happens at the *end* of the run, so run duration lands inside the gap:
+   at 1800s against a 30 min timer, most gaps came out at 1801s+ and Kuma read
+   them as down while every assertion was passing.
 2. Copy its push token and append to `/etc/restic/fox-cafe.env` (root, `0600`):
    ```
    SECURITY_PUSH_URL=http://127.0.0.1:3001/api/push/<push-token>
@@ -73,6 +78,9 @@ Description=Run the bluefox.cafe security check every 30 min
 
 [Timer]
 OnCalendar=*:0/30
+# Without this systemd's 1 min default accuracy drifts the start time a second
+# per run, clustering the gap overshoots into pairs that trip Kuma's retry.
+AccuracySec=1s
 Persistent=true
 
 [Install]
